@@ -1,3 +1,6 @@
+var taskLines = [];
+var now = Date.now();
+var tickInterval = 100;
 var tasks = [
   {
     "task": "User",
@@ -21,65 +24,124 @@ var tasks = [
     ]
   }
 ]
-
+var thisNow = Date.now()
 function label(tasks) {
   for (var x = 0; x < tasks.length; x++) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
-      tasks[x].subtasks[s].ticks = 0;
+      tasks[x].subtasks[s].ticks = thisNow;
     }
   }
 }
 label(tasks);
 
-function deduct(tasks) {
+function deduct(now, tasks) {
+
   for (var x = 0; x < tasks.length; x++) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
-      if (tasks[x].subtasks[s].ticks >= 0) {
-      tasks[x].subtasks[s].ticks--;
-        break;
-      }
+          tasks[x].subtasks[s].fresh = false;
     }
   }
-}
-
-function randomize(tasks) {
-  var min = 1;
-  var max = 16;
   for (var x = 0; x < tasks.length; x++) {
-    if (tasks[x].subtasks[tasks[x].subtasks.length - 1].ticks < 0) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
- 
-        tasks[x].subtasks[s].ticks = Math.floor(Math.random() * (max - min) + min);
+      if (tasks[x].subtasks[s].ticks > now) {
       
-    }
+      
+        tasks[x].subtasks[s].fresh = false;
+      
+        tasks[x].subtasks[s].ticks -= tickInterval;
+        if (tasks[x].subtasks[s].ticks < now && s + 1 < tasks[x].subtasks.length) {
+          tasks[x].subtasks[s + 1].fresh = true;
+        }
+        break;
+      } else {
+        
       }
+    }
   }
 }
 
-function generateTasks(tasks) {
+function randomize(now, tasks) {
+  var min = 100;
+  var max = 9000;
+
+  
+  for (var x = 0; x < tasks.length; x++) {
+      if (tasks[x].subtasks[tasks[x].subtasks.length - 1].ticks <= now) {
+    for (var s = 0; s < tasks[x].subtasks.length; s++) {
+
+        tasks[x].subtasks[s].fresh = true;
+       
+        tasks[x].subtasks[s].ticks = Date.now() + Math.floor(Math.random() * (max - min) + min);
+
+      
+      }
+    }
+  }
+}
+
+function generateTasks(now, tasks) {
   var table = "";
+  
   for (var x = 0; x < tasks.length; x++) {
+    table += `|${tasks[x].task}`;
+    var found = false;
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
-      if (tasks[x].subtasks[s].ticks > 0) {
-      table += `|${tasks[x].task}`;
       
+      
+      if (tasks[x].subtasks[s].ticks > now) {
         table += `|${tasks[x].subtasks[s].name}|${tasks[x].subtasks[s].ticks}|\n`
+       found = true;
         break;
+      } else {
+        
       }
+    }
+    if (!found) {
+      table += `|&nbsp;|&nbsp;|\n`
     }
   }
   
   return table;
 }
 
-function tick() {
-  deduct(tasks);
-  randomize(tasks);
+function generateTaskHistory(taskLines, tasks) {
+  if ( taskLines.length > 5) {
+    while(taskLines.length > 5) {
+      taskLines.pop();
+    }
+  }
+  for (var x = 0; x < tasks.length; x++) {
+    for (var s = 0; s < tasks[x].subtasks.length; s++) {
+      
+      
+      if (tasks[x].subtasks[s].fresh) {
+        taskLines.unshift(tasks[x].subtasks[s].name);
+        break;
+      } else {
+        
+      }
+    }
+  }
+  var taskText = "";
+  taskText += `**${taskLines[0]}** | `
+  for (var x = 1 ; x < taskLines.length; x++) {
+   taskText += `${taskLines[x]} | `
+  }
+  
+  return taskText;
+}
 
+function tick() {
+  deduct(now, tasks);
+  randomize(now, tasks);
+  var taskText = generateTaskHistory(taskLines, tasks);
   document.getElementById('content').innerHTML =
     marked.parse(`# Tasks
 |Task|State|Left|
-|---|---|---|\n` + generateTasks(tasks));
+|---|---|---|\n` + generateTasks(now, tasks) + `
+
+# History\n` + taskText, {headerIds: false, mangle: false});
+now = Date.now();
 }
 
-setInterval(tick, 150);
+setInterval(tick, tickInterval);
