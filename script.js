@@ -82,8 +82,8 @@ function deduct(now, tasks) {
 }
 
 function randomize(now, tasks) {
-  var min = 100;
-  var max = 9000;
+  var min = tickInterval * 15;
+  var max = tickInterval * 100;
 
   
   for (var x = 0; x < tasks.length; x++) {
@@ -241,7 +241,7 @@ function tick() {
           ctx.fillStyle = colours[myHistory[task]];
         // console.log(tasks[task].subtasks[myHistory[task]]);
           ctx.fill();
-          if (previousHistory[task] != myHistory[task]) {
+          if (previousHistory[task] != myHistory[task] || x == 0) {
             textRenders.push({
               text: tasks[task].subtasks[myHistory[task]].name,
               x: graphX,
