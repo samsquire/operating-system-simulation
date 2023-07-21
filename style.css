@@ -2,3 +2,6 @@ html {
   height: 100%;
   width: 100%;
 }
+#content {
+  height: 270px;
+}

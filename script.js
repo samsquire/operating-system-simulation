@@ -5,6 +5,7 @@ var c = document.getElementById("screen");
 var ctx = c.getContext("2d");
 var history = {};
 var samples = 20;
+var colours = ["green", "orange", "red", "yellowgreen"];
 
 var currentSample = 0;
 var tasks = [
@@ -12,21 +13,27 @@ var tasks = [
     "task": "User",
     subtasks: [
       { "name": "create-user" },
-      { "name": "send-email" }
+      { "name": "send-email" },
+      { "name": "update-subscription"},
+      { "name": "bill"}
     ]
   },
   {
     "task": "System",
     subtasks: [
       { "name": "start-backup" },
-      { "name": "finish-backup" }
+      { "name": "finish-backup" },
+      { "name": "reindex" },
+      { "name": "optimise"}
     ]
   },
   {
     "task": "Backend",
     subtasks: [
-      { "name": "do-something" },
-      { "name": "something-else" }
+      { "name": "synchronize" },
+      { "name": "scaleup" },
+      { "name": "scaledown" },
+      { "name": "upgrade"}
     ]
   }
 ];
@@ -129,6 +136,7 @@ function generateTaskHistory(taskLines, tasks) {
       
       
       if (tasks[x].subtasks[s].fresh == 1) {
+        tasks[x].subtasks[s].fresh++;
         taskLines.unshift(tasks[x].subtasks[s].name);
         break;
       } else {
@@ -146,7 +154,7 @@ function generateTaskHistory(taskLines, tasks) {
 }
 
 function tick() {
-  console.log("frame");
+  
   ctx.beginPath();
   ctx.rect(0, 0, 800, 800);
   ctx.fillStyle = "white";
@@ -176,7 +184,7 @@ function tick() {
           ctx.beginPath();
           ctx.fillStyle = "";
           ctx.rect(currentWidth - 15, currentY - 10, 10, 10);
-          ctx.fillStyle = "green";
+          ctx.fillStyle = colours[s];
           ctx.fill();
           ctx.stroke();
   
@@ -207,7 +215,7 @@ function tick() {
   var graphY = currentY + 10;
   var sampleX = graphX + currentSample * 20;
 
-  var colours = ["green", "orange", "red", "yellow"];
+
 
   ctx.beginPath();
   ctx.moveTo(sampleX, currentY);
@@ -231,13 +239,13 @@ function tick() {
           ctx.moveTo(graphX, graphY);
           ctx.rect(graphX, graphY, 20, 20);
           ctx.fillStyle = colours[myHistory[task]];
-        console.log(tasks[task].subtasks[myHistory[task]]);
+        // console.log(tasks[task].subtasks[myHistory[task]]);
           ctx.fill();
           if (previousHistory[task] != myHistory[task]) {
             textRenders.push({
               text: tasks[task].subtasks[myHistory[task]].name,
               x: graphX,
-              y: graphY + 10
+              y: graphY + 15
             });
             
              
@@ -289,3 +297,141 @@ currentSample = (currentSample + 1) % samples;
 }
 
 setInterval(tick, tickInterval);
+var c2 = document.getElementById("graph");
+var gctx = c2.getContext("2d");
+var visited = {};
+var adjacency = {};
+var nodes = {};
+var nodeList = [];
+
+var graphData = [
+  ["one", "line", "two"],
+  ["one", "line", "five"],
+  ["two", "line", "three"],
+  ["three", "line", "four"]
+]
+for (var x = 0 ; x < graphData.length; x++) {
+  if (!nodes.hasOwnProperty(graphData[x][0])) {
+    nodes[graphData[x]] = 1;
+    nodeList.push(graphData[x][0]);
+  }
+  if (!nodes.hasOwnProperty(graphData[x][2])) {
+    nodes[graphData[x]] = 1;
+    nodeList.push(graphData[x][2]);
+  }
+}
+function topoSort(name, visited, stack) {
+  visited[name] = true;
+  console.log(adjacency, name);
+  for (var n = 0 ; n < adjacency[name].length ; n++) {
+    topoSort(adjacency[name][n].destination, visited, stack);
+  }
+  stack.push(name);
+}
+
+function beginTopoSort(graph) {
+  var stack = [];
+  for (var x = 0 ; x < graph.length; x++) {
+    var item = graph[x];
+    if (!adjacency.hasOwnProperty(item[2])) {
+      adjacency[item[2]] = [];
+      
+    }
+    if (!adjacency.hasOwnProperty(item[0])) {
+      adjacency[item[0]] = [];
+      
+    }
+      adjacency[item[0]].push({"label": item[1], "destination": item[2]});
+    
+    
+  }
+  console.log(adjacency);
+  for (var x = 0 ; x < nodeList.length; x++) {
+    visited[nodeList[x]] = false;
+  }
+  for (var x = 0 ; x < nodeList.length; x++) {
+    if (!visited[nodeList[x]]) {
+      topoSort(nodeList[x], visited, stack);
+    }
+  }
+  var order = [];
+  while (stack.length > 0) {
+    var item = stack.pop();
+    order.push(item);
+  }
+  return order;
+  
+}
+
+function graphTick() {
+  gctx.beginPath();
+  gctx.rect(0, 0, 800, 800);
+  gctx.fillStyle = "white";
+  gctx.fill();
+  gctx.fillStyle = "";
+
+  var order = beginTopoSort(graphData);
+  console.log(order);
+  var new_x = 200;
+  var new_y = 400;
+
+  var rendered = {};
+
+  var angle = 0;
+  for (var n = 0 ; n < order.length; n++) {
+    var distance = 10;
+    if (!rendered.hasOwnProperty(order[n])) {
+      console.log("order new node ", order[n]);
+      last_x = new_x;
+      last_y = new_y;
+      gctx.beginPath();
+      gctx.arc(new_x, new_y, 25, 0, 2 * Math.PI);
+      gctx.stroke();
+      rendered[order[n]] = {
+        "node": order[n],
+        x: last_x,
+        y: last_y
+      }
+    } else {
+      last_x = rendered[order[n]].x;
+      last_y = rendered[order[n]].y;
+    }
+    
+    for (var a = 0 ; a < adjacency[order[n]].length; a++) {
+      
+    if (!rendered.hasOwnProperty(adjacency[order[n]][a].destination)) {
+    distance *= 1.3;
+    var radius = 10;
+    var x = rendered[order[n]].x + radius * Math.cos((-angle)*Math.PI/180) * distance;
+    var y = rendered[order[n]].y + radius * Math.sin((-angle)*Math.PI/180) * distance;
+
+
+      
+  gctx.beginPath();
+  gctx.arc(x, y, 25, 0, 2 * Math.PI);
+  gctx.stroke();
+    console.log("rendering new node", order[n], adjacency[order[n]][a].destination, x, y);
+      rendered[adjacency[order[n]][a].destination] = {
+        "node": adjacency[order[n]][a],
+        x: x,
+        y: y
+      }
+      gctx.beginPath();
+  gctx.moveTo(last_x, last_y);
+  gctx.lineTo(x, y);
+  gctx.stroke();
+      // last_x = x;
+      // last_y = y;
+        
+  }
+      
+
+      angle = (angle + 35) % 360;
+    }
+    angle = 0;
+    
+  }
+  
+}
+graphTick();
+// setInterval(graphTick, tickInterval);
