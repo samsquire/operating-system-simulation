@@ -2,6 +2,27 @@ html {
   height: 100%;
   width: 100%;
 }
+
 #content {
   height: 270px;
+}
+
+#program td {
+  background-color: lightgrey;
+}
+
+#programarea {}
+
+#programarea #program {
+  float: left;
+  width: 50%;
+}
+.rest {
+  clear: both;
+}
+
+#programarea #commands {
+  float: left;
+  width: 50%;
+  overflow-y: scroll;
 }

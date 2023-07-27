@@ -7,12 +7,44 @@
   <title>replit</title>
   <script src="/marked.min.js"></script>
   <link href="style.css" rel="stylesheet" type="text/css" />
+  <script
+  src="https://code.jquery.com/jquery-3.7.0.min.js"
+  integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
+  crossorigin="anonymous"></script>
 </head>
 
 <body>
   <div id="content"></div>
+    <h1>Processes</h1>
   <canvas width="800" height="800" id="screen"></canvas>
+  <h1>Program</h1>
+  <div id="programarea">
+    <div id="program">
+      <table>
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+      
+    </div>
+    <div id="commands">
+      <table>
+        <tbody></tbody>
+      </table>
+      
+                            <ol id="latches"></ol><input id="latchname" type="text"/><button id="addlatch">Add latch</button>
+    </div>
+  </div>
+  <div class="rest">
+  <h1>Timeline</h1>
+  <div id="timeline">
+    <table id="timetable">
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h1>Graph</h1>
   <canvas width="800" height="800" id="graph"></canvas>
+    </div>
   <script src="script.js"></script>
 
   <!--

@@ -1,5 +1,6 @@
 var taskLines = [];
-var now = Date.now();
+var first = true;
+
 var tickInterval = 100;
 var c = document.getElementById("screen");
 var ctx = c.getContext("2d");
@@ -45,14 +46,19 @@ for (var x = 0; x < samples; x++) {
 
   }
 }
-var thisNow = Date.now()
+var thisNow = Date.now();
+var now = thisNow;
 function label(tasks) {
   for (var x = 0; x < tasks.length; x++) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
       tasks[x].subtasks[s].ticks = thisNow;
-      tasks[x].subtasks[s].fresh = false;
+      tasks[x].subtasks[s].fresh = 2;
+      tasks[x].subtasks[s].completed = true;
+       
     }
+         tasks[x].subtasks[0].completed = false; 
   }
+  
 }
 label(tasks);
 
@@ -81,22 +87,41 @@ function deduct(now, tasks) {
   }
 }
 
-function randomize(now, tasks) {
-  var min = tickInterval * 15;
-  var max = tickInterval * 100;
-
+function randomize(first, now, tasks) {
+  var min = tickInterval * 200
+  var max = tickInterval * 300;
+  var running = -1;
 
   for (var x = 0; x < tasks.length; x++) {
-    if (tasks[x].subtasks[tasks[x].subtasks.length - 1].ticks <= now) {
-      for (var s = 0; s < tasks[x].subtasks.length; s++) {
-
-        tasks[x].subtasks[s].fresh = 0;
-
-        tasks[x].subtasks[s].ticks = Date.now() + Math.floor(Math.random() * (max - min) + min);
-
-
-      }
+    for (var s = 0; s < tasks[x].subtasks.length; s++) {
+    if (tasks[x].subtasks[s].ticks <= now && !tasks[x].subtasks[s].completed) {
+      running = s;
+          tasks[x].subtasks[running].completed = true;
+      break;
     }
+  }
+
+    if (running != -1 && !first) {
+                tasks[x].subtasks[running].completed = true;
+      running = running + 1;
+    }
+
+  if (running != -1 || first) {
+
+  
+  if (running >= tasks[x].subtasks.length) {
+    running = 0;
+  }
+        tasks[x].subtasks[running].fresh = 0;
+      tasks[x].subtasks[running].completed = false;
+
+        tasks[x].subtasks[running].ticks = Date.now() + Math.floor(Math.random() * (max - min) + min);
+  }
+        
+
+
+    
+    
   }
 }
 
@@ -276,7 +301,8 @@ function tick() {
 
 
   deduct(now, tasks);
-  randomize(now, tasks);
+  randomize(first, now, tasks);
+  first = false;
   var taskText = generateTaskHistory(taskLines, tasks);
   document.getElementById('content').innerHTML =
     marked.parse(`# Tasks
@@ -284,16 +310,19 @@ function tick() {
 |---|---|---|\n` + generateTasks(now, tasks) + `
 
 # History\n` + taskText, { headerIds: false, mangle: false });
-  now = Date.now();
+  
   for (var x = 0; x < tasks.length; x++) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
       if (tasks[x].subtasks[s].ticks > now) {
         history[currentSample][x] = s;
         break;
+      } else {
+        
       }
     }
   }
   currentSample = (currentSample + 1) % samples;
+  now = Date.now();
 }
 
 setInterval(tick, tickInterval);
@@ -435,3 +464,74 @@ function graphTick() {
 }
 graphTick();
 // setInterval(graphTick, tickInterval);
+function renderProgram() {
+  
+}
+var program = [];
+var latches = [];
+var commands = [
+{"name": "create-email"},
+{"name": "create-file"},
+{"name": "create-tls-connection"},
+{"name": "create-tcp-connection"},
+ {"name": "create-https-connection"},
+ {"name": "create-http-connection"},
+ {"name": "create-postgres-connection"},
+ {"name": "create-sqlite-connection"}
+ ];
+
+function drawCommands() {
+  for (var x = 0 ; x < commands.length ; x++) {
+    $("#commands tbody").append(`<tr><td data-action="append">` + commands[x].name + `</td></tr>`);
+  }
+  
+  var rows = 5;
+  var size = 10;
+for (var x = 0; x < rows; x++) {
+    $("#timetable tbody").append("<tr></tr>");
+    var row = $("#timetable tbody tr")[x];
+    for (var y = 0; y < size; y++) {
+      $(row).append("<td>t</td>");
+    }
+  }
+}
+
+function refresh() {
+  $("#latches").empty();
+  $("#program tbody").empty();
+  $("#program thead").empty();
+  $("#commands tbody").empty();
+  drawCommands();
+  for (var x = 0 ; x < latches.length ; x++) {
+    $("#latches").append("<li>" + latches[x] + "</li>");
+  }
+  $("#program thead").append("<th>Command</th>");
+  for (var x = 0 ; x < latches.length ; x++) {
+    $("#program thead").append(`<th>${latches[x]}</th>`);
+  }
+  for (var x = 0 ; x < program.length; x++) {
+    var row = $("#program tbody").append("<tr></tr>");
+    row.append(`<td>${program[x][0]}</td>`)
+    for (var n = 1 ; n < program[x].length; n++) {
+      
+    }
+  }
+}
+$("#commands tbody").on("click", function (event) {
+  var e = $(event.target);
+  console.log(e);
+  var action = $(e).data("action");
+  console.log(action);
+  switch (action) {
+    case "append":
+      program.push([e.text()])
+      break;
+  };
+  refresh();
+});
+$("#addlatch").on("click", function () {
+  latches.push($("#latchname").val());
+
+  refresh();
+});
+refresh();
