@@ -1,5 +1,85 @@
 var taskLines = [];
 var first = true;
+var cpu = {
+  threads: 2,
+  cores: 8
+}
+
+var program = `
+server = bind | accept | create-thread;
+create-thread = epoll | epoll-poll | parse | save
+`
+
+var parse = {
+  program: "",
+  last_char: " ",
+  pos: 0,
+  end: false
+};
+
+function getchar() {
+
+  if (parse.pos + 1 >= parse.program.length) {
+    parse.end = true;
+    return program.charAt(parse.pos);
+  }
+  var char = program.charAt(parse.pos);
+  parse.pos = parse.pos + 1;
+  parse.last_char = char;
+  return char;
+}
+
+const regex = /[A-Za-z0-9_-]/g;
+
+function gettok() {
+  while (!parse.end && (parse.last_char == "\n" || parse.last_char == " ")) {
+    getchar();
+  }
+  if (parse.last_char == "|") {
+    getchar();
+    return "pipe";
+  }
+  if (parse.last_char == "=") {
+    getchar();
+    return "equals";
+  }
+
+
+  if (parse.last_char == ";") {
+    getchar();
+    return "eol";
+  }
+  if (parse.last_char.match(regex)) {
+    var identifier = ""
+    while (!parse.end && parse.last_char.match(regex)) {
+      identifier += parse.last_char;
+      getchar();
+
+
+    }
+    return identifier;
+  }
+
+}
+
+function parseprogram(program) {
+  parse.program = program;
+  var token = gettok();
+  console.log(token);
+  while (!parse.end) {
+    var statement = [];
+    while (!parse.end && token != "eol") {
+      statement.push(token);
+      token = gettok();
+      console.log(token);
+
+    }
+    token = gettok();
+    console.log(statement);
+
+  }
+}
+parseprogram(program);
 
 var tickInterval = 100;
 var c = document.getElementById("screen");
@@ -9,6 +89,7 @@ var samples = 20;
 var colours = ["green", "orange", "red", "yellowgreen"];
 
 var currentSample = 0;
+
 var tasks = [
   {
     "task": "User",
@@ -38,6 +119,14 @@ var tasks = [
     ]
   }
 ];
+for (var i = 0; i < cpu.cores; i++) {
+  tasks.push({
+
+    "task": `Core ${i}`,
+    "subtasks": []
+  }
+  )
+}
 for (var x = 0; x < samples; x++) {
   history[x] = {};
   for (var y = 0; y < tasks.length; y++) {
@@ -54,11 +143,13 @@ function label(tasks) {
       tasks[x].subtasks[s].ticks = thisNow;
       tasks[x].subtasks[s].fresh = 2;
       tasks[x].subtasks[s].completed = true;
-       
+
     }
-         tasks[x].subtasks[0].completed = false; 
+    if (tasks[x].subtasks.length > 0) {
+      tasks[x].subtasks[0].completed = false;
+    }
   }
-  
+
 }
 label(tasks);
 
@@ -88,40 +179,42 @@ function deduct(now, tasks) {
 }
 
 function randomize(first, now, tasks) {
-  var min = tickInterval * 200
-  var max = tickInterval * 300;
+  var min = tickInterval * 50
+  var max = tickInterval * 100;
   var running = -1;
 
   for (var x = 0; x < tasks.length; x++) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
-    if (tasks[x].subtasks[s].ticks <= now && !tasks[x].subtasks[s].completed) {
-      running = s;
-          tasks[x].subtasks[running].completed = true;
-      break;
+      if (tasks[x].subtasks[s].ticks <= now && !tasks[x].subtasks[s].completed) {
+        running = s;
+        tasks[x].subtasks[running].completed = true;
+        break;
+      }
     }
-  }
 
-    if (running != -1 && !first) {
-                tasks[x].subtasks[running].completed = true;
+    if (running < tasks[x].subtasks.length && running != -1 && !first) {
+      tasks[x].subtasks[running].completed = true;
       running = running + 1;
     }
 
-  if (running != -1 || first) {
+    if (running != -1 || first) {
 
-  
-  if (running >= tasks[x].subtasks.length) {
-    running = 0;
-  }
+
+      if (running >= tasks[x].subtasks.length) {
+        running = 0;
+      }
+      if (running < tasks[x].subtasks.length) {
         tasks[x].subtasks[running].fresh = 0;
-      tasks[x].subtasks[running].completed = false;
+        tasks[x].subtasks[running].completed = false;
 
         tasks[x].subtasks[running].ticks = Date.now() + Math.floor(Math.random() * (max - min) + min);
-  }
-        
+      }
+    }
 
 
-    
-    
+
+
+
   }
 }
 
@@ -176,6 +269,26 @@ function generateTaskHistory(taskLines, tasks) {
   }
 
   return taskText;
+}
+
+function generateProcessDefinitions(tasks) {
+  var strings = [];
+  for (var task = 0; task < tasks.length; task++) {
+    var row = [];
+    strings.push(row);
+    strings.push(["\n"]);
+    row.push("### " + tasks[task].task + "\n");
+    for (var subtask = 0; subtask < tasks[task].subtasks.length; subtask++) {
+      row.push(tasks[task].subtasks[subtask].name);
+    }
+    row.push("\n");
+  }
+  // console.log(strings);
+  var output = "";
+  for (var string = 0; string < strings.length; string++) {
+    output += strings[string].join(" | ");
+  }
+  return output;
 }
 
 function tick() {
@@ -305,19 +418,22 @@ function tick() {
   first = false;
   var taskText = generateTaskHistory(taskLines, tasks);
   document.getElementById('content').innerHTML =
-    marked.parse(`# Tasks
+    marked.parse(`# Operating system
+    ${cpu.cores} cores/${cpu.threads * cpu.cores} threads
 |Task|State|Left|
 |---|---|---|\n` + generateTasks(now, tasks) + `
 
+# Process definitions\n` +
+      generateProcessDefinitions(tasks) + `\n
 # History\n` + taskText, { headerIds: false, mangle: false });
-  
+
   for (var x = 0; x < tasks.length; x++) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
       if (tasks[x].subtasks[s].ticks > now) {
         history[currentSample][x] = s;
         break;
       } else {
-        
+
       }
     }
   }
@@ -465,35 +581,42 @@ function graphTick() {
 graphTick();
 // setInterval(graphTick, tickInterval);
 function renderProgram() {
-  
+
 }
 var program = [];
 var latches = [];
+var activeLatch = -1;
 var commands = [
-{"name": "create-email"},
-{"name": "create-file"},
-{"name": "create-tls-connection"},
-{"name": "create-tcp-connection"},
- {"name": "create-https-connection"},
- {"name": "create-http-connection"},
- {"name": "create-postgres-connection"},
- {"name": "create-sqlite-connection"}
- ];
+  { "name": "create-email" },
+  { "name": "create-file" },
+  { "name": "create-tls-connection" },
+  { "name": "create-tcp-connection" },
+  { "name": "create-https-connection" },
+  { "name": "create-http-connection" },
+  { "name": "create-postgres-connection" },
+  { "name": "create-sqlite-connection" }
+];
 
 function drawCommands() {
-  for (var x = 0 ; x < commands.length ; x++) {
+  var array = program;
+  var transposed = array.map((_, colIndex) => array.map(row => row[colIndex]));
+  $("#timetable tbody").empty();
+  for (var x = 0; x < commands.length; x++) {
     $("#commands tbody").append(`<tr><td data-action="append">` + commands[x].name + `</td></tr>`);
   }
-  
+
   var rows = 5;
   var size = 10;
-for (var x = 0; x < rows; x++) {
+  for (var x = 0; x < transposed.length; x++) {
     $("#timetable tbody").append("<tr></tr>");
     var row = $("#timetable tbody tr")[x];
-    for (var y = 0; y < size; y++) {
-      $(row).append("<td>t</td>");
+    for (var y = 0; y < transposed[x].length; y++) {
+      if (transposed[x][y] != undefined) {
+        $(row).append(`<td>${transposed[x][y]}</td>`);
+      }
     }
   }
+
 }
 
 function refresh() {
@@ -501,37 +624,174 @@ function refresh() {
   $("#program tbody").empty();
   $("#program thead").empty();
   $("#commands tbody").empty();
-  drawCommands();
-  for (var x = 0 ; x < latches.length ; x++) {
-    $("#latches").append("<li>" + latches[x] + "</li>");
-  }
-  $("#program thead").append("<th>Command</th>");
-  for (var x = 0 ; x < latches.length ; x++) {
-    $("#program thead").append(`<th>${latches[x]}</th>`);
-  }
-  for (var x = 0 ; x < program.length; x++) {
-    var row = $("#program tbody").append("<tr></tr>");
-    row.append(`<td>${program[x][0]}</td>`)
-    for (var n = 1 ; n < program[x].length; n++) {
-      
+
+  for (var x = 0; x < program.length; x++) {
+    if (program[x].length - 1 < latches.length) {
+      for (var n = 0; n < latches.length; n++) {
+        program[x].push("");
+      }
     }
   }
-}
-$("#commands tbody").on("click", function (event) {
+
+  drawCommands();
+  for (var x = 0; x < latches.length; x++) {
+    $("#latches").append(`<li data-latch="${x}">` + latches[x] + "</li>");
+  }
+  $("#program thead").append(`<th data-latch="-1" class="active-latch">Command</th>`);
+  for (var x = 0; x < latches.length; x++) {
+    $("#program thead").append(`<th data-latch="${x}">${latches[x]}</th>`);
+  }
+  for (var x = 0; x < program.length; x++) {
+    var row = $("#program tbody").append("<tr></tr>");
+    row.append(`<td>${program[x][0]}</td>`);
+    for (var r = 0; r < latches.length; r++) {
+      row.append(`<td>${program[x][r + 1]}</td>`);
+    }
+    for (var n = 1; n < program[x].length; n++) {
+
+    }
+  }
+  $("#program thead th").on("click", function(element) {
+    var latch = $(event.target).data("latch");
+    console.log(latch);
+    activeLatch = parseInt(latch);
+    refresh();
+
+  });
+  $(".active-latch").toggleClass("active-latch");
+
+  var x = $("#program thead th")
+  $(x[activeLatch + 1]).toggleClass("active-latch");
+
+
+} // end of refresh
+$("#commands tbody").on("click", function(event) {
   var e = $(event.target);
   console.log(e);
   var action = $(e).data("action");
   console.log(action);
   switch (action) {
     case "append":
-      program.push([e.text()])
+      var line = [""];
+      for (var x = 0; x < latches.length; x++) {
+        line.push("");
+      }
+
+      var changeLine = activeLatch + 1;
+
+      line[changeLine] = e.text();
+
+      console.log(line);
+      program.push(line)
       break;
   };
   refresh();
 });
-$("#addlatch").on("click", function () {
+$("#addlatch").on("click", function() {
   latches.push($("#latchname").val());
 
   refresh();
 });
 refresh();
+var mouse = null;
+var originalTop = 0;
+var wheelEvent = 'onwheel' in document.createElement('div') ? 'wheel' : 'mousewheel';
+var wheelOpt = { passive: false };
+var keys = { 37: 1, 38: 1, 39: 1, 40: 1 };
+
+function preventDefaultForScrollKeys(e) {
+  if (keys[e.keyCode]) {
+    preventDefault(e);
+    return false;
+  }
+}
+function transformScroll(event) {
+  if (mouse == null) {
+    return;
+  }
+  if (!event.deltaY) {
+    return;
+  }
+
+
+  mouse.scrollLeft += event.deltaX + event.deltaY;
+  // event.preventDefault();
+}
+
+function disableScroll() {
+  window.addEventListener('DOMMouseScroll', preventDefault, false); // older FF
+  window.addEventListener(wheelEvent, preventDefault, wheelOpt); // modern desktop
+  window.addEventListener('wheel', preventDefault, wheelOpt); // mobile
+  window.addEventListener('keydown', preventDefaultForScrollKeys, false);
+}
+function preventDefault(e) {
+  e.preventDefault();
+}
+// call this to Enable
+function enableScroll() {
+  window.removeEventListener('DOMMouseScroll', preventDefault, false);
+  window.removeEventListener(wheelEvent, preventDefault, wheelOpt);
+  window.removeEventListener('wheel', preventDefault, wheelOpt);
+  window.removeEventListener('keydown', preventDefaultForScrollKeys, false);
+}
+
+$("#timeline").on("mouseover", function(event) {
+  disableScroll();
+  console.log("disable scroll");
+  mouse = $("#timeline").get(0);
+
+});
+$("#timeline").on("mouseout", function(event) {
+  mouse = null;
+  enableScroll();
+});
+
+
+var element = document.scrollingElement || document.documentElement;
+// var element = document.getElementByid("timetable");
+element.addEventListener('wheel', transformScroll);
+
+var cc = document.getElementById("cycles");
+var cctx = cc.getContext("2d");
+
+var circles = [
+  { x: 50, y: 100, angle: 0 },
+  { x: 100, y: 200, angle: 200 },
+  { x: 100, y: 100, angle: 65 },
+  { x: 50, y: 200, angle: 65 },
+  { x: 180, y: 100, angle: 65 },
+  { x: 200, y: 200, angle: 35 }
+]
+
+function cycles() {
+  cctx.beginPath();
+  cctx.rect(0, 0, 800, 800);
+  cctx.fillStyle = "white";
+  cctx.fill();
+  cctx.fillStyle = "";
+  for (var n = 0; n < circles.length; n++) {
+    circles[n].angle = (circles[n].angle + 10) % 360
+    var distance = 3;
+    var radius = 10;
+
+    var x = circles[n].x + radius * Math.cos((-0) * Math.PI / 180) * distance;
+    var y = circles[n].y + radius * Math.sin((-0) * Math.PI / 180) * distance;
+
+    var line_x = x + radius * Math.cos((-circles[n].angle) * Math.PI / 180) * distance;
+    var line_y = y + radius * Math.sin((circles[n].angle) * Math.PI / 180) * distance;
+
+
+    cctx.beginPath();
+    cctx.moveTo(line_x, line_y);
+    cctx.lineTo(x, y);
+    cctx.stroke();
+
+    cctx.strokeStyle = "black";
+    cctx.beginPath();
+
+    cctx.arc(x, y, 25, 0, 2 * Math.PI);
+    cctx.stroke();
+  }
+}
+
+setInterval(cycles, 100);

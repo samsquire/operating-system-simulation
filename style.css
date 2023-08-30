@@ -4,7 +4,7 @@ html {
 }
 
 #content {
-  height: 270px;
+  height: 1000px;
 }
 
 #program td {
@@ -25,4 +25,20 @@ html {
   float: left;
   width: 50%;
   overflow-y: scroll;
+}
+
+#timeline {
+  background-color: lightgrey;
+  overflow-y: scroll;
+  width: 90%;
+  height: 200px;
+}
+
+#timeline td {
+  white-space: nowrap;
+  border: 1px solid black;
+}
+
+.active-latch {
+  border: 1px solid black;
 }
