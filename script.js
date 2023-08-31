@@ -63,13 +63,15 @@ function gettok() {
 
 function parseprogram(program) {
   console.log(program);
+  parse.pos = 0;
+  parse.last_char = " ";
   parse.program = program.replace(/\u00A0/g, '');;
   var token = gettok();
   console.log("token", token);
   var statements = [];
   while (!parse.end) {
     var statement = [];
-    statements.push(statement);
+    
     while (!parse.end && token != "eol" && token != undefined) {
       console.log("innerloop");
       statement.push(token);
@@ -77,8 +79,9 @@ function parseprogram(program) {
       console.log(token);
 
     }
+    statements.push(statement);
     token = gettok();
-    console.log(statement);
+    
 
   }
   parse.last_char = " ";
@@ -807,35 +810,48 @@ var eventprograms = [
   `handle-request = submit-io | &callback | do-something;`,
   `submit-io = prep | submit | callback;`
 ]
+var events = {
+  changed: false
+}
+function refreshevents() {
+  if (events.changed) {
+    events.changed = false;
+    mergeTasks();
+  }
+}
+setInterval(refreshevents, 300);
+
 function refresheventprograms() {
   $("#events").empty();
   for (var x = 0; x < eventprograms.length; x++) {
-    var program = $("#events").append(`<div contenteditable>${eventprograms[x]}</div>`);
-    $(program).on("input", function() {
-      eventprograms[x] = $(program).text();
-      mergeTasks();
-    })
+    var item = $(`<div contenteditable>${eventprograms[x]}</div>`)
+    var program = $("#events").append(item);
+    $(item).on("input", function(x) { return function(event) {
+      eventprograms[x] = $(event.target).text();
+      events.changed = true;
+    }}(x))
 
   };
-  mergeTasks();
+  
 }
 
 function mergeTasks() {
-
+  console.log("MERGE TASKS");
   $("#parsedevents").empty();
   for (var x = 0; x < eventprograms.length; x++) {
     var statements = parseprogram(eventprograms[x]);
-    console.log(statements);
-    var ul = $("#parsedevents").append("<ol></ol>")
+    console.log("statements", statements);
+   
     for (var n = 0; n < statements.length; n++) {
-
+ var ol = $("<ol></ol>");
+    var ul = $("#parsedevents").append(ol)
+    
       for (var b = 0; b < statements[n].length; b++) {
-        ul.append(`<li>${statements[n][b]}</li>`)
+        ol.append(`<li>${statements[n][b]}</li>`)
       }
     }
     //var taskA = $("")
 
   }
 }
-mergeTasks();
 refresheventprograms();
