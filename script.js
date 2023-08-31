@@ -21,18 +21,18 @@ function getchar() {
 
   if (parse.pos + 1 >= parse.program.length) {
     parse.end = true;
-    return program.charAt(parse.pos);
+    return parse.program.charAt(parse.pos);
   }
-  var char = program.charAt(parse.pos);
+  var char = parse.program.charAt(parse.pos);
   parse.pos = parse.pos + 1;
   parse.last_char = char;
   return char;
 }
 
-const regex = /[A-Za-z0-9_-]/g;
+const regex = /[A-Za-z0-9_\-\&]/g;
 
 function gettok() {
-  while (!parse.end && (parse.last_char == "\n" || parse.last_char == " ")) {
+  while (!parse.end && (parse.last_char == "\t" || parse.last_char == "\n" || parse.last_char == " ")) {
     getchar();
   }
   if (parse.last_char == "|") {
@@ -52,23 +52,26 @@ function gettok() {
   if (parse.last_char.match(regex)) {
     var identifier = ""
     while (!parse.end && parse.last_char.match(regex)) {
+
       identifier += parse.last_char;
       getchar();
-
-
     }
     return identifier;
   }
-
+  // console.log("symbol[" + parse.last_char + "]");
 }
 
 function parseprogram(program) {
-  parse.program = program;
+  console.log(program);
+  parse.program = program.replace(/\u00A0/g, '');;
   var token = gettok();
-  console.log(token);
+  console.log("token", token);
+  var statements = [];
   while (!parse.end) {
     var statement = [];
-    while (!parse.end && token != "eol") {
+    statements.push(statement);
+    while (!parse.end && token != "eol" && token != undefined) {
+      console.log("innerloop");
       statement.push(token);
       token = gettok();
       console.log(token);
@@ -78,9 +81,13 @@ function parseprogram(program) {
     console.log(statement);
 
   }
+  parse.last_char = " ";
+  parse.pos = 0;
+  parse.end = false;
+  return statements;
 }
-parseprogram(program);
-
+var initialprogram = parseprogram(program);
+console.log(initialprogram);
 var tickInterval = 100;
 var c = document.getElementById("screen");
 var ctx = c.getContext("2d");
@@ -795,3 +802,40 @@ function cycles() {
 }
 
 setInterval(cycles, 100);
+
+var eventprograms = [
+  `handle-request = submit-io | &callback | do-something;`,
+  `submit-io = prep | submit | callback;`
+]
+function refresheventprograms() {
+  $("#events").empty();
+  for (var x = 0; x < eventprograms.length; x++) {
+    var program = $("#events").append(`<div contenteditable>${eventprograms[x]}</div>`);
+    $(program).on("input", function() {
+      eventprograms[x] = $(program).text();
+      mergeTasks();
+    })
+
+  };
+  mergeTasks();
+}
+
+function mergeTasks() {
+
+  $("#parsedevents").empty();
+  for (var x = 0; x < eventprograms.length; x++) {
+    var statements = parseprogram(eventprograms[x]);
+    console.log(statements);
+    var ul = $("#parsedevents").append("<ol></ol>")
+    for (var n = 0; n < statements.length; n++) {
+
+      for (var b = 0; b < statements[n].length; b++) {
+        ul.append(`<li>${statements[n][b]}</li>`)
+      }
+    }
+    //var taskA = $("")
+
+  }
+}
+mergeTasks();
+refresheventprograms();
