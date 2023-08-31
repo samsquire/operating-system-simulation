@@ -19,7 +19,7 @@ var parse = {
 
 function getchar() {
 
-  if (parse.pos + 1 >= parse.program.length) {
+  if (parse.pos >= parse.program.length) {
     parse.end = true;
     return parse.program.charAt(parse.pos);
   }
@@ -50,15 +50,17 @@ function gettok() {
     return "eol";
   }
   if (parse.last_char.match(regex)) {
+
     var identifier = ""
     while (!parse.end && parse.last_char.match(regex)) {
 
       identifier += parse.last_char;
       getchar();
     }
+    console.log("found identifier", "[" + parse.last_char + "]");
     return identifier;
   }
-  // console.log("symbol[" + parse.last_char + "]");
+  return undefined;
 }
 
 function parseprogram(program) {
@@ -66,22 +68,28 @@ function parseprogram(program) {
   parse.pos = 0;
   parse.last_char = " ";
   parse.program = program.replace(/\u00A0/g, '');;
-  var token = gettok();
+  var token = null;
   console.log("token", token);
   var statements = [];
   while (!parse.end) {
     var statement = [];
-    
-    while (!parse.end && token != "eol" && token != undefined) {
+    console.log("line");
+    while (!parse.end && token != "eol" && token !== undefined) {
       console.log("innerloop");
-      statement.push(token);
+
       token = gettok();
       console.log(token);
-
+      if (token != "eol") {
+        statement.push(token);
+      }
     }
     statements.push(statement);
+
     token = gettok();
-    
+
+    if (token != "eol") {
+      statement.push(token);
+    }
 
   }
   parse.last_char = " ";
@@ -353,12 +361,14 @@ function tick() {
   ctx.lineTo(20 + (samples * 20), currentY);
   ctx.stroke();
 
+  
+
   for (var x = 0; x < tasks.length; x++) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
       tasks[x].subtasks[s].renderedText = false;
     }
   }
-
+  
   var graphX = 20;
   var graphY = currentY + 10;
   var sampleX = graphX + currentSample * 20;
@@ -370,6 +380,8 @@ function tick() {
   ctx.lineTo(sampleX, currentY + 300);
   ctx.stroke();
 
+  
+  
   var textRenders = [];
 
   for (var x = 0; x < samples; x++) {
@@ -826,26 +838,31 @@ function refresheventprograms() {
   for (var x = 0; x < eventprograms.length; x++) {
     var item = $(`<div contenteditable>${eventprograms[x]}</div>`)
     var program = $("#events").append(item);
-    $(item).on("input", function(x) { return function(event) {
-      eventprograms[x] = $(event.target).text();
-      events.changed = true;
-    }}(x))
+    $(item).on("input", function(x) {
+      return function(event) {
+        eventprograms[x] = $(event.target).text();
+        events.changed = true;
+      }
+    }(x))
 
   };
-  
+
 }
 
 function mergeTasks() {
   console.log("MERGE TASKS");
+  var programs = []
   $("#parsedevents").empty();
   for (var x = 0; x < eventprograms.length; x++) {
     var statements = parseprogram(eventprograms[x]);
+    programs.push(statements);
     console.log("statements", statements);
-   
+
+
     for (var n = 0; n < statements.length; n++) {
- var ol = $("<ol></ol>");
-    var ul = $("#parsedevents").append(ol)
-    
+      var ol = $("<ol></ol>");
+      var ul = $("#parsedevents").append(ol)
+
       for (var b = 0; b < statements[n].length; b++) {
         ol.append(`<li>${statements[n][b]}</li>`)
       }
@@ -853,5 +870,7 @@ function mergeTasks() {
     //var taskA = $("")
 
   }
+
 }
+mergeTasks();
 refresheventprograms();
