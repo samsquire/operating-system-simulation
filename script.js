@@ -141,7 +141,12 @@ for (var i = 0; i < cpu.cores; i++) {
   tasks.push({
 
     "task": `Core ${i}`,
-    "subtasks": []
+    "subtasks": [
+      {"name": "task1"},
+      {"name": "task2"},
+      {"name": "task3"},
+      {"name": "task4"}
+    ]
   }
   )
 }
@@ -197,16 +202,17 @@ function deduct(now, tasks) {
 }
 
 function randomize(first, now, tasks) {
-  var min = tickInterval * 50
+  var min = tickInterval * 5
   var max = tickInterval * 100;
-  var running = -1;
+  
 
   for (var x = 0; x < tasks.length; x++) {
+    var running = -1;
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
       if (tasks[x].subtasks[s].ticks <= now && !tasks[x].subtasks[s].completed) {
         running = s;
-        tasks[x].subtasks[running].completed = true;
-        break;
+      tasks[x].subtasks[running].completed = true;
+        
       }
     }
 
@@ -225,7 +231,7 @@ function randomize(first, now, tasks) {
         tasks[x].subtasks[running].fresh = 0;
         tasks[x].subtasks[running].completed = false;
 
-        tasks[x].subtasks[running].ticks = Date.now() + Math.floor(Math.random() * (max - min) + min);
+        tasks[x].subtasks[running].ticks = Date.now() + (Math.floor(Math.random() * (max - min) + min));
       }
     }
 
@@ -851,7 +857,8 @@ function refresheventprograms() {
 
 function mergeTasks() {
   console.log("MERGE TASKS");
-  var programs = []
+  var programs = [];
+  var index = {};
   $("#parsedevents").empty();
   for (var x = 0; x < eventprograms.length; x++) {
     var statements = parseprogram(eventprograms[x]);
@@ -870,6 +877,23 @@ function mergeTasks() {
     //var taskA = $("")
 
   }
+  for (var i = 0 ; i < programs.length; i++) {
+    var prog = programs[i];
+    for (var n = 0 ; n < prog.length; n++) {
+      for (var s = 0 ; s < prog[n].length; s++) {
+        var item = prog[n][s];
+        console.log("item", item);
+        if (item.charAt(0) == "&") {
+          index[item] = {
+            program: prog,
+            stateline: n,
+            position: s
+          } 
+        }
+      } // end s
+    } //
+  }
+  console.log(index);
 
 }
 mergeTasks();
