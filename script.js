@@ -885,7 +885,7 @@ function mergeTasks() {
         console.log("item", item);
         if (item.charAt(0) == "&") {
           index[item] = {
-            program: prog,
+            program: prog[n],
             stateline: n,
             position: s
           } 
@@ -894,6 +894,20 @@ function mergeTasks() {
     } //
   }
   console.log(index);
+  for (var x = 0 ; x < programs.length; x++) {
+    for (var s = 0 ; s < programs[x].length; s++) {
+      for (var v = 0 ; v < programs[x][s].length; v++) {
+        var bb = programs[x][s][v];
+        console.log(bb);
+        var key = "&" + bb;
+      if (index.hasOwnProperty(key)) {
+        var record = index[key]
+        console.log(record.position);
+        console.log(record.program.slice(record.position + 1));
+      }
+      }
+    }
+  }
 
 }
 mergeTasks();
