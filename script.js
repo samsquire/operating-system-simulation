@@ -82,13 +82,13 @@ function gettok() {
       identifier += parse.last_char;
       getchar();
     }
-    console.log("found identifier", "[" + parse.last_char + "]");
+    //console.log("found identifier", "[" + parse.last_char + "]");
     return identifier;
   }
   return undefined;
 }
 
-function parseparameterlist(statement) {
+function parseparameterlist(statement, kind) {
   var parameter = [];
   while (!parse.end && parse.token != "closebracket" && parse.token != "eol") {
           parse.token = gettok();
@@ -98,22 +98,22 @@ function parseparameterlist(statement) {
           if (parse.token == "comma") {
             continue
           }
-          if (parse.token == "closebracket") {
+          if (parse.token == kind) {
             break;
           }
-          console.log("paramlist", parse.token);
+          console.log(kind, "paramlist", parse.token);
           parameter.push(parse.token);
         }
   statement.push(parameter);
 }
 
 function parseprogram(program) {
-  console.log(program);
+  // console.log(program);
   parse.pos = 0;
   parse.last_char = " ";
   parse.token = "";
   parse.program = program.replace(/\u00A0/g, '');;
-  console.log("token", parse.token);
+  // console.log("token", parse.token);
   var statements = [];
   while (!parse.end) {
     var statement = [];
@@ -122,12 +122,15 @@ function parseprogram(program) {
       // console.log("innerloop");
 
       parse.token = gettok();
-      console.log(parse.token);
+      console.log("TOK", parse.token);
       if (parse.token == undefined) {
         break;
       }
       if (parse.token == "openbracket") {
-        parseparameterlist(statement);
+        parseparameterlist(statement, "closebracket");
+      }
+      else if (parse.token == "opencurly") {
+        parseparameterlist(statement, "closecurly");
       }
       else if (parse.token == "pipe" || parse.token == "equals") {
         statements.push(statement);
@@ -136,11 +139,15 @@ function parseprogram(program) {
       else if (parse.token != "eol") {
         statement.push(parse.token);
       }
-      
+      else if (parse.token == "eol") {
+        statements.push(statement);
+        statement = []
+      }
     }
     
 
     parse.token = gettok();
+    console.log("AFTERTOKEN", parse.token)
     if (parse.token == undefined) {
         break;
     }
@@ -158,10 +165,15 @@ function parseprogram(program) {
   parse.last_char = " ";
   parse.pos = 0;
   parse.end = false;
+  var masks = [];
+  for (var x = 0 ; x < statements.length; x++) {
+    masks.push(1 << x);
+  }
+  console.log(masks);
   return statements;
 }
 var initialprogram = parseprogram(program);
-console.log(initialprogram);
+//console.log(initialprogram);
 var tickInterval = 100;
 var c = document.getElementById("screen");
 var ctx = c.getContext("2d");
@@ -558,7 +570,7 @@ for (var x = 0; x < graphData.length; x++) {
 }
 function topoSort(name, visited, stack) {
   visited[name] = true;
-  console.log(adjacency, name);
+  //console.log(adjacency, name);
   for (var n = 0; n < adjacency[name].length; n++) {
     topoSort(adjacency[name][n].destination, visited, stack);
   }
@@ -581,7 +593,7 @@ function beginTopoSort(graph) {
 
 
   }
-  console.log(adjacency);
+  //console.log(adjacency);
   for (var x = 0; x < nodeList.length; x++) {
     visited[nodeList[x]] = false;
   }
@@ -607,7 +619,7 @@ function graphTick() {
   gctx.fillStyle = "";
 
   var order = beginTopoSort(graphData);
-  console.log(order);
+  //console.log(order);
   var new_x = 200;
   var new_y = 400;
 
@@ -617,7 +629,7 @@ function graphTick() {
   for (var n = 0; n < order.length; n++) {
     var distance = 10;
     if (!rendered.hasOwnProperty(order[n])) {
-      console.log("order new node ", order[n]);
+      //console.log("order new node ", order[n]);
       last_x = new_x;
       last_y = new_y;
       gctx.beginPath();
@@ -646,7 +658,7 @@ function graphTick() {
         gctx.beginPath();
         gctx.arc(x, y, 25, 0, 2 * Math.PI);
         gctx.stroke();
-        console.log("rendering new node", order[n], adjacency[order[n]][a].destination, x, y);
+        //console.log("rendering new node", order[n], adjacency[order[n]][a].destination, x, y);
         rendered[adjacency[order[n]][a].destination] = {
           "node": adjacency[order[n]][a],
           x: x,
@@ -758,7 +770,7 @@ function refresh() {
 } // end of refresh
 $("#commands tbody").on("click", function(event) {
   var e = $(event.target);
-  console.log(e);
+  //console.log(e);
   var action = $(e).data("action");
   console.log(action);
   switch (action) {
@@ -772,7 +784,7 @@ $("#commands tbody").on("click", function(event) {
 
       line[changeLine] = e.text();
 
-      console.log(line);
+      //console.log(line);
       program.push(line)
       break;
   };
@@ -903,7 +915,7 @@ thread_free(next_free_thread) = fork(A, B)
                                     running_on(A, 1)
                                | { yield(B, returnvalue) | paused(B, 2) }
                                  { await(A, B, returnvalue) | paused(A, 1) }
-                               | send_returnvalue(B, A, returnvalue) 
+                               | send_returnvalue(B, A, returnvalue); 
   `
 ]
 var events = {
@@ -960,7 +972,7 @@ function mergeTasks() {
     for (var n = 0 ; n < prog.length; n++) {
       for (var s = 0 ; s < prog[n].length; s++) {
         var item = prog[n][s];
-        console.log("itemis", item);
+        // console.log("itemis", item);
         if (typeof item === "string" && item.charAt(0) == "&") {
           index[item] = {
             program: prog[n],
@@ -971,16 +983,16 @@ function mergeTasks() {
       } // end s
     } //
   }
-  console.log(index);
+  //console.log(index);
   for (var x = 0 ; x < programs.length; x++) {
     for (var s = 0 ; s < programs[x].length; s++) {
       for (var v = 0 ; v < programs[x][s].length; v++) {
         var bb = programs[x][s][v];
-        console.log(bb);
+        //console.log(bb);
         var key = "&" + bb;
       if (index.hasOwnProperty(key)) {
         var record = index[key]
-        console.log(record.position);
+        //console.log(record.position);
         console.log(record.program.slice(record.position + 1));
       }
       }
