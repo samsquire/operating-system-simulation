@@ -21,11 +21,15 @@ function getchar() {
 
   if (parse.pos >= parse.program.length) {
     parse.end = true;
-    return parse.program.charAt(parse.pos);
+    
+    char =  parse.program.charAt(parse.pos);
+    // console.log("char is ["+ char + "]")
+    return char;
   }
   var char = parse.program.charAt(parse.pos);
   parse.pos = parse.pos + 1;
   parse.last_char = char;
+  // console.log("char is ["+ char + "]")
   return char;
 }
 
@@ -43,11 +47,32 @@ function gettok() {
     getchar();
     return "equals";
   }
-
-
+  if (parse.last_char == "(") {
+    getchar();
+    return "openbracket"
+  }
+  if (parse.last_char == "") {
+    return "eof";
+  }
+  if (parse.last_char == ")") {
+    getchar();
+    return "closebracket"
+  }
+   if (parse.last_char == ",") {
+    getchar();
+    return "comma"
+  }
   if (parse.last_char == ";") {
     getchar();
     return "eol";
+  }
+    if (parse.last_char == "{") {
+    getchar();
+    return "opencurly";
+  }
+    if (parse.last_char == "}") {
+    getchar();
+    return "closecurly";
   }
   if (parse.last_char.match(regex)) {
 
@@ -63,32 +88,70 @@ function gettok() {
   return undefined;
 }
 
+function parseparameterlist(statement) {
+  var parameter = [];
+  while (!parse.end && parse.token != "closebracket" && parse.token != "eol") {
+          parse.token = gettok();
+          if (parse.token == undefined) {
+            break;
+          }
+          if (parse.token == "comma") {
+            continue
+          }
+          if (parse.token == "closebracket") {
+            break;
+          }
+          console.log("paramlist", parse.token);
+          parameter.push(parse.token);
+        }
+  statement.push(parameter);
+}
+
 function parseprogram(program) {
   console.log(program);
   parse.pos = 0;
   parse.last_char = " ";
+  parse.token = "";
   parse.program = program.replace(/\u00A0/g, '');;
-  var token = null;
-  console.log("token", token);
+  console.log("token", parse.token);
   var statements = [];
   while (!parse.end) {
     var statement = [];
-    console.log("line");
-    while (!parse.end && token != "eol" && token !== undefined) {
-      console.log("innerloop");
+    console.log("> in line");
+    while (!parse.end && parse.token != "eol" && parse.token !== undefined) {
+      // console.log("innerloop");
 
-      token = gettok();
-      console.log(token);
-      if (token != "eol") {
-        statement.push(token);
+      parse.token = gettok();
+      console.log(parse.token);
+      if (parse.token == undefined) {
+        break;
       }
+      if (parse.token == "openbracket") {
+        parseparameterlist(statement);
+      }
+      else if (parse.token == "pipe" || parse.token == "equals") {
+        statements.push(statement);
+        statement = [];
+      }
+      else if (parse.token != "eol") {
+        statement.push(parse.token);
+      }
+      
     }
-    statements.push(statement);
+    
 
-    token = gettok();
-
-    if (token != "eol") {
-      statement.push(token);
+    parse.token = gettok();
+    if (parse.token == undefined) {
+        break;
+    }
+    if (parse.token == "openbracket") {
+        parseparameterlist();
+    }
+    if (parse.token != "eol") {
+      statement.push(parse.token);
+    }
+    if (parse.token == "eol") {
+      statements.push(statement);
     }
 
   }
@@ -826,7 +889,22 @@ setInterval(cycles, 100);
 
 var eventprograms = [
   `handle-request = submit-io | &callback | do-something;`,
-  `submit-io = prep | submit | callback;`
+  `submit-io = prep | submit | callback;`,
+  `next_free_thread = 2
+task(A) thread(1) assignment(A, 1) = running_on(A, 1) | paused(A, 1)
+
+running_on(A, 1)
+thread(1)
+assignment(A, 1)
+thread_free(next_free_thread) = fork(A, B)
+                                | send_task_to_thread(B, next_free_thread)
+                                |   running_on(B, 2)
+                                    paused(B, 1)
+                                    running_on(A, 1)
+                               | { yield(B, returnvalue) | paused(B, 2) }
+                                 { await(A, B, returnvalue) | paused(A, 1) }
+                               | send_returnvalue(B, A, returnvalue) 
+  `
 ]
 var events = {
   changed: false
@@ -882,8 +960,8 @@ function mergeTasks() {
     for (var n = 0 ; n < prog.length; n++) {
       for (var s = 0 ; s < prog[n].length; s++) {
         var item = prog[n][s];
-        console.log("item", item);
-        if (item.charAt(0) == "&") {
+        console.log("itemis", item);
+        if (typeof item === "string" && item.charAt(0) == "&") {
           index[item] = {
             program: prog[n],
             stateline: n,
@@ -908,7 +986,7 @@ function mergeTasks() {
       }
     }
   }
-
+  
 }
 mergeTasks();
 refresheventprograms();
