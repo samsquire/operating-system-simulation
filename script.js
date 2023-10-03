@@ -16,13 +16,39 @@ var parse = {
   pos: 0,
   end: false
 };
+var products = [
+  {
+    "name": "hosted",
+    "description": "hosted somewhere"
+  }
+];
+
+function productTable(products) {
+  return products.map(function(item) {
+    return `|${item.name}|${item.description}\n`;
+  })
+}
+
+function renderproducts() {
+
+  var text = `\n
+|Product Keyword|Description|
+|---|---|\n` +
+    productTable(products);
+  console.log(text);
+  document.getElementById('products').innerHTML =
+    marked.parse(text
+    );
+}
+
+renderproducts();
 
 function getchar() {
 
   if (parse.pos >= parse.program.length) {
     parse.end = true;
-    
-    char =  parse.program.charAt(parse.pos);
+
+    char = parse.program.charAt(parse.pos);
     // console.log("char is ["+ char + "]")
     return char;
   }
@@ -58,7 +84,7 @@ function gettok() {
     getchar();
     return "closebracket"
   }
-   if (parse.last_char == ",") {
+  if (parse.last_char == ",") {
     getchar();
     return "comma"
   }
@@ -66,11 +92,11 @@ function gettok() {
     getchar();
     return "eol";
   }
-    if (parse.last_char == "{") {
+  if (parse.last_char == "{") {
     getchar();
     return "opencurly";
   }
-    if (parse.last_char == "}") {
+  if (parse.last_char == "}") {
     getchar();
     return "closecurly";
   }
@@ -89,22 +115,43 @@ function gettok() {
 }
 
 function parseparameterlist(statement, kind) {
+  var currentfact = {
+    parameters: []
+  }
   var parameter = [];
-  while (!parse.end && parse.token != "closebracket" && parse.token != "eol") {
-          parse.token = gettok();
-          if (parse.token == undefined) {
-            break;
-          }
-          if (parse.token == "comma") {
-            continue
-          }
-          if (parse.token == kind) {
-            break;
-          }
-          console.log(kind, "paramlist", parse.token);
-          parameter.push(parse.token);
-        }
-  statement.push(parameter);
+  var items = [];
+  while (!parse.end && parse.token != kind && parse.token != "eol") {
+    parse.token = gettok();
+    if (parse.token == undefined) {
+      break;
+    }
+    if (parse.token == "openbracket") {
+
+      var me = [];
+      parseparameterlist(me, "closebracket");
+      currentfact.fact = items[0];
+      currentfact.parameters = me.slice(0); statement.push(currentfact);
+      currentfact = {
+        parameters: []
+      };
+      items = []
+
+
+    }
+    if (parse.token == "comma") {
+      continue
+    }
+    if (parse.token == kind) {
+      break;
+    }
+    else if (parse.token != "closebracket" && parse.token != "closecurly") {
+      console.log(kind, "paramlist", parse.token);
+      items.push(parse.token);
+    }
+  }
+  for (var x = 0 ; x < items.length; x++) {
+    statement.push(items[x]);
+  }
 }
 
 function parseprogram(program) {
@@ -115,8 +162,13 @@ function parseprogram(program) {
   parse.program = program.replace(/\u00A0/g, '');;
   // console.log("token", parse.token);
   var statements = [];
+  var currentfact = {
+    parameters: []
+  };
+
+  var statement = [];
   while (!parse.end) {
-    var statement = [];
+
     console.log("> in line");
     while (!parse.end && parse.token != "eol" && parse.token !== undefined) {
       // console.log("innerloop");
@@ -128,37 +180,67 @@ function parseprogram(program) {
       }
       if (parse.token == "openbracket") {
         parseparameterlist(statement, "closebracket");
+        currentfact.fact = statement[0];
+        currentfact.parameters = statement.slice(1); statements.push(currentfact);
+        currentfact = {
+          parameters: []
+        };
+        statement = []
       }
       else if (parse.token == "opencurly") {
-        parseparameterlist(statement, "closecurly");
+        var container = {
+          kind: "parallel",
+          children: []
+        };
+        parseparameterlist(container.children, "closecurly");
+        statements.push(container);
+        statement = [];
       }
       else if (parse.token == "pipe" || parse.token == "equals") {
-        statements.push(statement);
-        statement = [];
+
+        currentfact = {
+          parameters: []
+        };
+        statement = []
       }
       else if (parse.token != "eol") {
         statement.push(parse.token);
+
       }
       else if (parse.token == "eol") {
-        statements.push(statement);
+
+        currentfact = {
+          parameters: []
+        };
         statement = []
       }
     }
-    
+
 
     parse.token = gettok();
     console.log("AFTERTOKEN", parse.token)
     if (parse.token == undefined) {
-        break;
+      break;
     }
     if (parse.token == "openbracket") {
-        parseparameterlist();
+      parseparameterlist(statement, "closebracket");
+      currentfact.fact = statement[0];
+      currentfact.parameters = statement.slice(1); statements.push(currentfact);
+      currentfact = {
+        parameters: []
+      };
+      statement = []
     }
-    if (parse.token != "eol") {
+    else if (parse.token != "eol") {
       statement.push(parse.token);
     }
-    if (parse.token == "eol") {
-      statements.push(statement);
+    else if (parse.token == "eol") {
+      currentfact.fact = statement[0];
+      currentfact.parameters = statement.slice(1); statements.push(currentfact);
+      currentfact = {
+        parameters: []
+      };
+      statement = []
     }
 
   }
@@ -166,7 +248,7 @@ function parseprogram(program) {
   parse.pos = 0;
   parse.end = false;
   var masks = [];
-  for (var x = 0 ; x < statements.length; x++) {
+  for (var x = 0; x < statements.length; x++) {
     masks.push(1 << x);
   }
   console.log(masks);
@@ -217,10 +299,10 @@ for (var i = 0; i < cpu.cores; i++) {
 
     "task": `Core ${i}`,
     "subtasks": [
-      {"name": "task1"},
-      {"name": "task2"},
-      {"name": "task3"},
-      {"name": "task4"}
+      { "name": "task1" },
+      { "name": "task2" },
+      { "name": "task3" },
+      { "name": "task4" }
     ]
   }
   )
@@ -279,15 +361,15 @@ function deduct(now, tasks) {
 function randomize(first, now, tasks) {
   var min = tickInterval * 5
   var max = tickInterval * 100;
-  
+
 
   for (var x = 0; x < tasks.length; x++) {
     var running = -1;
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
       if (tasks[x].subtasks[s].ticks <= now && !tasks[x].subtasks[s].completed) {
         running = s;
-      tasks[x].subtasks[running].completed = true;
-        
+        tasks[x].subtasks[running].completed = true;
+
       }
     }
 
@@ -442,14 +524,14 @@ function tick() {
   ctx.lineTo(20 + (samples * 20), currentY);
   ctx.stroke();
 
-  
+
 
   for (var x = 0; x < tasks.length; x++) {
     for (var s = 0; s < tasks[x].subtasks.length; s++) {
       tasks[x].subtasks[s].renderedText = false;
     }
   }
-  
+
   var graphX = 20;
   var graphY = currentY + 10;
   var sampleX = graphX + currentSample * 20;
@@ -461,8 +543,8 @@ function tick() {
   ctx.lineTo(sampleX, currentY + 300);
   ctx.stroke();
 
-  
-  
+
+
   var textRenders = [];
 
   for (var x = 0; x < samples; x++) {
@@ -902,8 +984,8 @@ setInterval(cycles, 100);
 var eventprograms = [
   `handle-request = submit-io | &callback | do-something;`,
   `submit-io = prep | submit | callback;`,
-  `next_free_thread = 2
-task(A) thread(1) assignment(A, 1) = running_on(A, 1) | paused(A, 1)
+  `next_free_thread(2);
+task(A) thread(1) assignment(A, 1) = running_on(A, 1) | paused(A, 1);
 
 running_on(A, 1)
 thread(1)
@@ -967,10 +1049,10 @@ function mergeTasks() {
     //var taskA = $("")
 
   }
-  for (var i = 0 ; i < programs.length; i++) {
+  for (var i = 0; i < programs.length; i++) {
     var prog = programs[i];
-    for (var n = 0 ; n < prog.length; n++) {
-      for (var s = 0 ; s < prog[n].length; s++) {
+    for (var n = 0; n < prog.length; n++) {
+      for (var s = 0; s < prog[n].length; s++) {
         var item = prog[n][s];
         // console.log("itemis", item);
         if (typeof item === "string" && item.charAt(0) == "&") {
@@ -978,27 +1060,27 @@ function mergeTasks() {
             program: prog[n],
             stateline: n,
             position: s
-          } 
+          }
         }
       } // end s
     } //
   }
   //console.log(index);
-  for (var x = 0 ; x < programs.length; x++) {
-    for (var s = 0 ; s < programs[x].length; s++) {
-      for (var v = 0 ; v < programs[x][s].length; v++) {
+  for (var x = 0; x < programs.length; x++) {
+    for (var s = 0; s < programs[x].length; s++) {
+      for (var v = 0; v < programs[x][s].length; v++) {
         var bb = programs[x][s][v];
         //console.log(bb);
         var key = "&" + bb;
-      if (index.hasOwnProperty(key)) {
-        var record = index[key]
-        //console.log(record.position);
-        console.log(record.program.slice(record.position + 1));
-      }
+        if (index.hasOwnProperty(key)) {
+          var record = index[key]
+          //console.log(record.position);
+          console.log(record.program.slice(record.position + 1));
+        }
       }
     }
   }
-  
+
 }
 mergeTasks();
 refresheventprograms();
