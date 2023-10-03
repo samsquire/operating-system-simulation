@@ -190,7 +190,9 @@ function parseprogram(program) {
       else if (parse.token == "opencurly") {
         var container = {
           kind: "parallel",
-          children: []
+          children: [],
+          parameters: [],
+          fact: "parallel"
         };
         parseparameterlist(container.children, "closecurly");
         statements.push(container);
@@ -982,8 +984,8 @@ function cycles() {
 setInterval(cycles, 100);
 
 var eventprograms = [
-  `handle-request = submit-io | &callback | do-something;`,
-  `submit-io = prep | submit | callback;`,
+  `handle-request() = submit-io() | &callback() | do-something();`,
+  `submit-io() = prep() | submit() | callback();`,
   `next_free_thread(2);
 task(A) thread(1) assignment(A, 1) = running_on(A, 1) | paused(A, 1);
 
@@ -1014,7 +1016,7 @@ setInterval(refreshevents, 300);
 function refresheventprograms() {
   $("#events").empty();
   for (var x = 0; x < eventprograms.length; x++) {
-    var item = $(`<div contenteditable>${eventprograms[x]}</div>`)
+    var item = $(`<pre contenteditable>${eventprograms[x]}</pre>`)
     var program = $("#events").append(item);
     $(item).on("input", function(x) {
       return function(event) {
@@ -1037,13 +1039,20 @@ function mergeTasks() {
     programs.push(statements);
     console.log("statements", statements);
 
-
-    for (var n = 0; n < statements.length; n++) {
       var ol = $("<ol></ol>");
       var ul = $("#parsedevents").append(ol)
-
-      for (var b = 0; b < statements[n].length; b++) {
-        ol.append(`<li>${statements[n][b]}</li>`)
+    for (var n = 0; n < statements.length; n++) {
+      console.log("stmts", statements[n]);
+      var container = $(`<div class="fact-container"></div>`);
+        ol.append(container)
+      var name = $(`<div class="fact-name">${statements[n].fact}</div>`);
+      container.append(name);
+      if (container.kind == "parallel") {
+        
+      }
+      for (var b = 0; b < statements[n].parameters.length; b++) {
+var factname = $(`<div class="fact-parameter">${statements[n].parameters[b]}</div>`);
+        container.append(factname);
       }
     }
     //var taskA = $("")
