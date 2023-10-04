@@ -1,5 +1,11 @@
 var taskLines = [];
 var first = true;
+var graphData = [
+  ["one", "line", "two"],
+  ["one", "line", "five"],
+  ["two", "line", "three"],
+  ["three", "line", "four"]
+]
 var cpu = {
   threads: 2,
   cores: 8
@@ -651,27 +657,30 @@ var adjacency = {};
 var nodes = {};
 var nodeList = [];
 
-var graphData = [
-  ["one", "line", "two"],
-  ["one", "line", "five"],
-  ["two", "line", "three"],
-  ["three", "line", "four"]
-]
-for (var x = 0; x < graphData.length; x++) {
-  if (!nodes.hasOwnProperty(graphData[x][0])) {
-    nodes[graphData[x]] = 1;
-    nodeList.push(graphData[x][0]);
-  }
-  if (!nodes.hasOwnProperty(graphData[x][2])) {
-    nodes[graphData[x]] = 1;
-    nodeList.push(graphData[x][2]);
+function updateGraph() {
+  nodes = {};
+  nodeList = [];
+  adjacency = {};
+  visited = {};
+  for (var x = 0; x < graphData.length; x++) {
+    if (!nodes.hasOwnProperty(graphData[x][0])) {
+      nodes[graphData[x]] = 1;
+      nodeList.push(graphData[x][0]);
+    }
+    if (!nodes.hasOwnProperty(graphData[x][2])) {
+      nodes[graphData[x]] = 1;
+      nodeList.push(graphData[x][2]);
+    }
   }
 }
+updateGraph();
 function topoSort(name, visited, stack) {
   visited[name] = true;
   //console.log(adjacency, name);
   for (var n = 0; n < adjacency[name].length; n++) {
+    if (!visited[adjacency[name][n].destination]) {
     topoSort(adjacency[name][n].destination, visited, stack);
+    }
   }
   stack.push(name);
 }
@@ -712,14 +721,14 @@ function beginTopoSort(graph) {
 
 function graphTick() {
   gctx.beginPath();
-  gctx.rect(0, 0, 800, 800);
+  gctx.rect(0, 0, 5000, 5000);
   gctx.fillStyle = "white";
   gctx.fill();
   gctx.fillStyle = "";
 
   var order = beginTopoSort(graphData);
-  //console.log(order);
-  var new_x = 200;
+  console.log("ordering", order);
+  var new_x = 50;
   var new_y = 400;
 
   var rendered = {};
@@ -729,11 +738,22 @@ function graphTick() {
     var distance = 10;
     if (!rendered.hasOwnProperty(order[n])) {
       //console.log("order new node ", order[n]);
-      last_x = new_x;
-      last_y = new_y;
+      
+      new_x += 0;
+      new_y += 100;
+      
       gctx.beginPath();
       gctx.arc(new_x, new_y, 25, 0, 2 * Math.PI);
       gctx.stroke();
+
+      last_x = new_x;
+      last_y = new_y;
+
+ctx.beginPath();
+        gctx.font = "20px serif";
+        gctx.fillStyle = "black";
+      gctx.fillText(order[n], new_x, new_y);
+      
       rendered[order[n]] = {
         "node": order[n],
         x: last_x,
@@ -747,7 +767,7 @@ function graphTick() {
     for (var a = 0; a < adjacency[order[n]].length; a++) {
 
       if (!rendered.hasOwnProperty(adjacency[order[n]][a].destination)) {
-        distance *= 1.3;
+        distance *= 1.6;
         var radius = 10;
         var x = rendered[order[n]].x + radius * Math.cos((-angle) * Math.PI / 180) * distance;
         var y = rendered[order[n]].y + radius * Math.sin((-angle) * Math.PI / 180) * distance;
@@ -756,8 +776,12 @@ function graphTick() {
 
         gctx.beginPath();
         gctx.arc(x, y, 25, 0, 2 * Math.PI);
+        
         gctx.stroke();
-        //console.log("rendering new node", order[n], adjacency[order[n]][a].destination, x, y);
+        ctx.beginPath();
+        gctx.font = "20px serif";
+        gctx.fillStyle = "black";
+      gctx.fillText(adjacency[order[n]][a].destination, x, y);//console.log("rendering new node", order[n], adjacency[order[n]][a].destination, x, y);
         rendered[adjacency[order[n]][a].destination] = {
           "node": adjacency[order[n]][a],
           x: x,
@@ -781,7 +805,7 @@ function graphTick() {
 
 }
 graphTick();
-// setInterval(graphTick, tickInterval);
+setInterval(graphTick, 3000);
 function renderProgram() {
 
 }
@@ -973,12 +997,12 @@ function cycles() {
   cctx.fillStyle = "";
   for (var n = 0; n < circles.length; n++) {
     circles[n].angle = (circles[n].angle + 10) % 360
-    var distance = 3;
+    var distance = 1;
     var radius = 10;
 
     var x = circles[n].x + radius * Math.cos((-0) * Math.PI / 180) * distance;
     var y = circles[n].y + radius * Math.sin((-0) * Math.PI / 180) * distance;
-
+  
     var line_x = x + radius * Math.cos((-circles[n].angle) * Math.PI / 180) * distance;
     var line_y = y + radius * Math.sin((circles[n].angle) * Math.PI / 180) * distance;
 
@@ -1097,14 +1121,18 @@ var factname = $(`<div class="fact-parameter">${statements[n].parameters[b]}</di
   }
 
   console.log("statementindex", parameterIndex);
-
+  graphData = [];
   var keys = Object.keys(parameterIndex);
   for (var n = 0 ; n < keys.length; n++) {
-    for (var b = 0 ; b < parameterIndex[keys[n]].length; b++) {
+    for (var b = 0 ; b < parameterIndex[keys[n]].length - 1; b++) {
+      var left = `${parameterIndex[keys[n]][b].fact} ${keys[n]}`;
+      var right = `${keys[n]} ${parameterIndex[keys[n]][b + 1].fact}`;
       console.log(keys[n]," moves to", parameterIndex[keys[n]][b].fact, parameterIndex[keys[n]][b]);
+      graphData.push([left, "moves", right]);
     }
   }
-  
+  console.log(graphData);
+  updateGraph();
   for (var i = 0; i < programs.length; i++) {
     var prog = programs[i];
     for (var n = 0; n < prog.length; n++) {
