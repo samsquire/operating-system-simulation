@@ -154,17 +154,17 @@ function parseparameterlist(statement, kind) {
     }
     else if (parse.token == "pipe") {
       currentfact = {
-          parameters: [],
-          children: []
-        };
-        items = [];
+        parameters: [],
+        children: []
+      };
+      items = [];
     }
     else if (parse.token != "closebracket" && parse.token != "closecurly") {
       console.log(kind, "paramlist", parse.token);
       items.push(parse.token);
     }
   }
-  for (var x = 0 ; x < items.length; x++) {
+  for (var x = 0; x < items.length; x++) {
     statement.push(items[x]);
   }
 }
@@ -257,8 +257,7 @@ function parseprogram(program) {
       statement.push(parse.token);
     }
     else if (parse.token == "eol") {
-      currentfact.fact = statement[0];
-      currentfact.parameters = statement.slice(1); statements.push(currentfact);
+
       currentfact = {
         parameters: [],
         children: []
@@ -679,7 +678,7 @@ function topoSort(name, visited, stack) {
   //console.log(adjacency, name);
   for (var n = 0; n < adjacency[name].length; n++) {
     if (!visited[adjacency[name][n].destination]) {
-    topoSort(adjacency[name][n].destination, visited, stack);
+      topoSort(adjacency[name][n].destination, visited, stack);
     }
   }
   stack.push(name);
@@ -721,14 +720,14 @@ function beginTopoSort(graph) {
 
 function graphTick() {
   gctx.beginPath();
-  gctx.rect(0, 0, 5000, 5000);
+  gctx.rect(0, 0, 5000, 10000);
   gctx.fillStyle = "white";
   gctx.fill();
   gctx.fillStyle = "";
 
   var order = beginTopoSort(graphData);
-  console.log("ordering", order);
-  var new_x = 50;
+  // console.log("ordering", order);
+  var new_x = 500;
   var new_y = 400;
 
   var rendered = {};
@@ -738,10 +737,10 @@ function graphTick() {
     var distance = 10;
     if (!rendered.hasOwnProperty(order[n])) {
       //console.log("order new node ", order[n]);
-      
-      new_x += 0;
-      new_y += 100;
-      
+
+      new_x += 50;
+      new_y += 500;
+
       gctx.beginPath();
       gctx.arc(new_x, new_y, 25, 0, 2 * Math.PI);
       gctx.stroke();
@@ -749,11 +748,11 @@ function graphTick() {
       last_x = new_x;
       last_y = new_y;
 
-ctx.beginPath();
-        gctx.font = "20px serif";
-        gctx.fillStyle = "black";
+      ctx.beginPath();
+      gctx.font = "13px serif";
+      gctx.fillStyle = "black";
       gctx.fillText(order[n], new_x, new_y);
-      
+
       rendered[order[n]] = {
         "node": order[n],
         x: last_x,
@@ -767,7 +766,7 @@ ctx.beginPath();
     for (var a = 0; a < adjacency[order[n]].length; a++) {
 
       if (!rendered.hasOwnProperty(adjacency[order[n]][a].destination)) {
-        distance *= 1.6;
+        distance *= 1.3;
         var radius = 10;
         var x = rendered[order[n]].x + radius * Math.cos((-angle) * Math.PI / 180) * distance;
         var y = rendered[order[n]].y + radius * Math.sin((-angle) * Math.PI / 180) * distance;
@@ -776,20 +775,30 @@ ctx.beginPath();
 
         gctx.beginPath();
         gctx.arc(x, y, 25, 0, 2 * Math.PI);
-        
+
         gctx.stroke();
         ctx.beginPath();
-        gctx.font = "20px serif";
+        gctx.font = "13px serif";
         gctx.fillStyle = "black";
-      gctx.fillText(adjacency[order[n]][a].destination, x, y);//console.log("rendering new node", order[n], adjacency[order[n]][a].destination, x, y);
+        gctx.fillText(adjacency[order[n]][a].destination, x, y);//console.log("rendering new node", order[n], adjacency[order[n]][a].destination, x, y);
         rendered[adjacency[order[n]][a].destination] = {
           "node": adjacency[order[n]][a],
           x: x,
           y: y
         }
         gctx.beginPath();
-        gctx.moveTo(last_x, last_y);
-        gctx.lineTo(x, y);
+        gctx.moveTo(x, y);
+        gctx.lineTo(last_x, last_y);
+
+  var headlen = 10; // length of head in pixels
+  var dx = last_x - x;
+  var dy = last_y - y;
+  var aangle = Math.atan2(dy, dx);
+  
+  gctx.lineTo(last_x - headlen * Math.cos(aangle - Math.PI / 6), last_y - headlen * Math.sin(aangle - Math.PI / 6));
+  gctx.moveTo(last_x, last_y);
+  gctx.lineTo(last_x - headlen * Math.cos(aangle + Math.PI / 6), last_y - headlen * Math.sin(aangle + Math.PI / 6));
+        
         gctx.stroke();
         // last_x = x;
         // last_y = y;
@@ -1002,7 +1011,7 @@ function cycles() {
 
     var x = circles[n].x + radius * Math.cos((-0) * Math.PI / 180) * distance;
     var y = circles[n].y + radius * Math.sin((-0) * Math.PI / 180) * distance;
-  
+
     var line_x = x + radius * Math.cos((-circles[n].angle) * Math.PI / 180) * distance;
     var line_y = y + radius * Math.sin((circles[n].angle) * Math.PI / 180) * distance;
 
@@ -1036,7 +1045,7 @@ thread_free(thread:next_free_thread) = fork(task:A, task:B)
                                 |   running_on(task:B, thread:2)
                                     paused(task:B, thread:1)
                                     running_on(task:A, thread:1)
-                               | { yield(B, returnvalue) | paused(task:B, thread:2) }
+                               | { yield(task:B, returnvalue) | paused(task:B, thread:2) }
                                  { await(task:A, task:B, returnvalue) | paused(task:A, thread:1) }
                                | send_returnvalue(task:B, task:A, returnvalue); 
   `
@@ -1068,18 +1077,18 @@ function refresheventprograms() {
 
 }
 function indexStatement(x, statement, statements, parameterIndex) {
-  
-  for (var c = 0 ; c < statement.children.length; c++) {
-      indexStatement(c, statement.children[c], statement.children, parameterIndex)
-    }
-    for (var v = 0 ; v < statement.parameters.length; v++) {
-    
-    if (!parameterIndex.hasOwnProperty(statement.parameters[v])) {
-    parameterIndex[statement.parameters[v]] = [] 
-      }
-      parameterIndex[statement.parameters[v]].push(statement);
-    }
+
+  for (var c = 0; c < statement.children.length; c++) {
+    indexStatement(c, statement.children[c], statement.children, parameterIndex)
   }
+  for (var v = 0; v < statement.parameters.length; v++) {
+
+    if (!parameterIndex.hasOwnProperty(statement.parameters[v])) {
+      parameterIndex[statement.parameters[v]] = []
+    }
+    parameterIndex[statement.parameters[v]].push(statement);
+  }
+}
 function mergeTasks() {
   console.log("MERGE TASKS");
   var programs = [];
@@ -1090,19 +1099,19 @@ function mergeTasks() {
     programs.push(statements);
     console.log("statements", statements);
 
-      var ol = $("<ol></ol>");
-      var ul = $("#parsedevents").append(ol)
+    var ol = $("<ol></ol>");
+    var ul = $("#parsedevents").append(ol)
     for (var n = 0; n < statements.length; n++) {
-      
+
       var container = $(`<div class="fact-container"></div>`);
-        ol.append(container)
+      ol.append(container)
       var name = $(`<div class="fact-name">${statements[n].fact}</div>`);
       container.append(name);
       if (container.kind == "parallel") {
-        
+
       }
       for (var b = 0; b < statements[n].parameters.length; b++) {
-var factname = $(`<div class="fact-parameter">${statements[n].parameters[b]}</div>`);
+        var factname = $(`<div class="fact-parameter">${statements[n].parameters[b]}</div>`);
         container.append(factname);
       }
     }
@@ -1110,26 +1119,40 @@ var factname = $(`<div class="fact-parameter">${statements[n].parameters[b]}</di
 
   }
 
-  
-  
+
+
   // process AST
   var parameterIndex = {};
-  for (var x = 0 ; x < statements.length ; x++) {
-    
-      indexStatement(x, statements[x], statements, parameterIndex);
-    
+  statements = programs[programs.length - 1];
+  for (var x = 0; x < statements.length; x++) {
+
+    indexStatement(x, statements[x], statements, parameterIndex);
+
   }
 
   console.log("statementindex", parameterIndex);
   graphData = [];
   var keys = Object.keys(parameterIndex);
-  for (var n = 0 ; n < keys.length; n++) {
-    for (var b = 0 ; b < parameterIndex[keys[n]].length - 1; b++) {
-      var left = `${parameterIndex[keys[n]][b].fact} ${keys[n]}`;
-      var right = `${keys[n]} ${parameterIndex[keys[n]][b + 1].fact}`;
-      console.log(keys[n]," moves to", parameterIndex[keys[n]][b].fact, parameterIndex[keys[n]][b]);
-      graphData.push([left, "moves", right]);
-    }
+  
+  for (var n = 0; n < statements.length; n++) {
+      //graphData.push([statements[n].fact, "moves", statements[n].parameters.join(" ")]);
+      for (var b = 0; b < statements[n].parameters.length; b++) {
+         for (var c = 0; c < statements[n].parameters.length; c++) {
+           if (b != c) {
+graphData.push([`${statements[n].parameters[c]}`, "moves", statements[n].parameters[b]]);
+             
+           }
+         }
+        
+      
+        //graphData.push([parameterIndex[keys[n]][b].fact, "moves", keys[n]]);
+        
+// graphData.push([parameterIndex[keys[n]][b].parameters[x], "moves", keys[n]]);
+        
+       
+
+
+  }
   }
   console.log(graphData);
   updateGraph();
