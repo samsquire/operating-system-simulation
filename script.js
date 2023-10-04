@@ -59,7 +59,7 @@ function getchar() {
   return char;
 }
 
-const regex = /[A-Za-z0-9_\-\&]/g;
+const regex = /[A-Za-z0-9_\-\:&]/g;
 
 function gettok() {
   while (!parse.end && (parse.last_char == "\t" || parse.last_char == "\n" || parse.last_char == " ")) {
@@ -116,7 +116,8 @@ function gettok() {
 
 function parseparameterlist(statement, kind) {
   var currentfact = {
-    parameters: []
+    parameters: [],
+    children: []
   }
   var parameter = [];
   var items = [];
@@ -132,7 +133,8 @@ function parseparameterlist(statement, kind) {
       currentfact.fact = items[0];
       currentfact.parameters = me.slice(0); statement.push(currentfact);
       currentfact = {
-        parameters: []
+        parameters: [],
+        children: []
       };
       items = []
 
@@ -143,6 +145,13 @@ function parseparameterlist(statement, kind) {
     }
     if (parse.token == kind) {
       break;
+    }
+    else if (parse.token == "pipe") {
+      currentfact = {
+          parameters: [],
+          children: []
+        };
+        items = [];
     }
     else if (parse.token != "closebracket" && parse.token != "closecurly") {
       console.log(kind, "paramlist", parse.token);
@@ -163,7 +172,8 @@ function parseprogram(program) {
   // console.log("token", parse.token);
   var statements = [];
   var currentfact = {
-    parameters: []
+    parameters: [],
+    children: []
   };
 
   var statement = [];
@@ -183,7 +193,8 @@ function parseprogram(program) {
         currentfact.fact = statement[0];
         currentfact.parameters = statement.slice(1); statements.push(currentfact);
         currentfact = {
-          parameters: []
+          parameters: [],
+          children: []
         };
         statement = []
       }
@@ -201,7 +212,8 @@ function parseprogram(program) {
       else if (parse.token == "pipe" || parse.token == "equals") {
 
         currentfact = {
-          parameters: []
+          parameters: [],
+          children: []
         };
         statement = []
       }
@@ -212,7 +224,8 @@ function parseprogram(program) {
       else if (parse.token == "eol") {
 
         currentfact = {
-          parameters: []
+          parameters: [],
+          children: []
         };
         statement = []
       }
@@ -229,7 +242,8 @@ function parseprogram(program) {
       currentfact.fact = statement[0];
       currentfact.parameters = statement.slice(1); statements.push(currentfact);
       currentfact = {
-        parameters: []
+        parameters: [],
+        children: []
       };
       statement = []
     }
@@ -240,7 +254,8 @@ function parseprogram(program) {
       currentfact.fact = statement[0];
       currentfact.parameters = statement.slice(1); statements.push(currentfact);
       currentfact = {
-        parameters: []
+        parameters: [],
+        children: []
       };
       statement = []
     }
@@ -987,19 +1002,19 @@ var eventprograms = [
   `handle-request() = submit-io() | &callback() | do-something();`,
   `submit-io() = prep() | submit() | callback();`,
   `next_free_thread(2);
-task(A) thread(1) assignment(A, 1) = running_on(A, 1) | paused(A, 1);
+task(task:A) thread(thread:1) assignment(task:A, thread:1) = running_on(task:A, thread:1) | paused(task:A, thread:1);
 
-running_on(A, 1)
-thread(1)
-assignment(A, 1)
-thread_free(next_free_thread) = fork(A, B)
-                                | send_task_to_thread(B, next_free_thread)
-                                |   running_on(B, 2)
-                                    paused(B, 1)
-                                    running_on(A, 1)
+running_on(task:A, thread:1)
+thread(thread:1)
+assignment(task:A, thread:1)
+thread_free(thread:next_free_thread) = fork(task:A, task:B)
+                                | send_task_to_thread(task:B, thread:next_free_thread)
+                                |   running_on(task:B, thread:2)
+                                    paused(task:B, thread:1)
+                                    running_on(task:A, thread:1)
                                | { yield(B, returnvalue) | paused(B, 2) }
-                                 { await(A, B, returnvalue) | paused(A, 1) }
-                               | send_returnvalue(B, A, returnvalue); 
+                                 { await(task:A, task:B, returnvalue) | paused(task:A, thread:1) }
+                               | send_returnvalue(task:B, task:A, returnvalue); 
   `
 ]
 var events = {
@@ -1028,7 +1043,19 @@ function refresheventprograms() {
   };
 
 }
-
+function indexStatement(x, statement, statements, parameterIndex) {
+  console.log(statement);
+  for (var c = 0 ; c < statement.children.length; c++) {
+      indexStatement(c, statement.children[c], statement.children, parameterIndex)
+    }
+    for (var v = 0 ; v < statement.parameters.length; v++) {
+    
+    if (!parameterIndex.hasOwnProperty(statement.parameters[v])) {
+    parameterIndex[statement.parameters[v]] = [] 
+      }
+      parameterIndex[statement.parameters[v]].push(statement);
+    }
+  }
 function mergeTasks() {
   console.log("MERGE TASKS");
   var programs = [];
@@ -1058,6 +1085,19 @@ var factname = $(`<div class="fact-parameter">${statements[n].parameters[b]}</di
     //var taskA = $("")
 
   }
+
+  
+  
+  // process AST
+  var parameterIndex = {};
+  for (var x = 0 ; x < statements.length ; x++) {
+    
+      indexStatement(x, statements[x], statements, parameterIndex);
+    
+  }
+
+  console.log("statementindex", parameterIndex);
+  
   for (var i = 0; i < programs.length; i++) {
     var prog = programs[i];
     for (var n = 0; n < prog.length; n++) {
