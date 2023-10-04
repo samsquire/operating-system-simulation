@@ -1001,7 +1001,7 @@ setInterval(cycles, 100);
 var eventprograms = [
   `handle-request() = submit-io() | &callback() | do-something();`,
   `submit-io() = prep() | submit() | callback();`,
-  `next_free_thread(2);
+  `next_free_thread(thread:2);
 task(task:A) thread(thread:1) assignment(task:A, thread:1) = running_on(task:A, thread:1) | paused(task:A, thread:1);
 
 running_on(task:A, thread:1)
@@ -1012,7 +1012,7 @@ thread_free(thread:next_free_thread) = fork(task:A, task:B)
                                 |   running_on(task:B, thread:2)
                                     paused(task:B, thread:1)
                                     running_on(task:A, thread:1)
-                               | { yield(B, returnvalue) | paused(B, 2) }
+                               | { yield(B, returnvalue) | paused(task:B, thread:2) }
                                  { await(task:A, task:B, returnvalue) | paused(task:A, thread:1) }
                                | send_returnvalue(task:B, task:A, returnvalue); 
   `
@@ -1044,7 +1044,7 @@ function refresheventprograms() {
 
 }
 function indexStatement(x, statement, statements, parameterIndex) {
-  console.log(statement);
+  
   for (var c = 0 ; c < statement.children.length; c++) {
       indexStatement(c, statement.children[c], statement.children, parameterIndex)
     }
@@ -1069,7 +1069,7 @@ function mergeTasks() {
       var ol = $("<ol></ol>");
       var ul = $("#parsedevents").append(ol)
     for (var n = 0; n < statements.length; n++) {
-      console.log("stmts", statements[n]);
+      
       var container = $(`<div class="fact-container"></div>`);
         ol.append(container)
       var name = $(`<div class="fact-name">${statements[n].fact}</div>`);
@@ -1097,6 +1097,13 @@ var factname = $(`<div class="fact-parameter">${statements[n].parameters[b]}</di
   }
 
   console.log("statementindex", parameterIndex);
+
+  var keys = Object.keys(parameterIndex);
+  for (var n = 0 ; n < keys.length; n++) {
+    for (var b = 0 ; b < parameterIndex[keys[n]].length; b++) {
+      console.log(keys[n]," moves to", parameterIndex[keys[n]][b].fact, parameterIndex[keys[n]][b]);
+    }
+  }
   
   for (var i = 0; i < programs.length; i++) {
     var prog = programs[i];
