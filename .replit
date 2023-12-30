@@ -1,9 +1,7 @@
 hidden=[".config"]
 
-# hosting is currently hardcoded for this language
-# [hosting]
-# route = "/"
-# directory= "/"
+[hosting]
+directory = "/public"
 
 [nix]
 channel = "stable-22_11"
@@ -179,3 +177,7 @@ pattern = "**/{*.less,*.scss,*.css}"
 
 [gitHubImport]
 requiredFiles = [".replit", "replit.nix", ".config"]
+
+[deployment]
+deploymentTarget = "static"
+publicDir = "./public"

@@ -10,6 +10,7 @@ var cpu = {
   threads: 2,
   cores: 8
 }
+  
 
 var program = `
 server = bind | accept | create-thread;
@@ -726,14 +727,16 @@ function graphTick() {
   gctx.fillStyle = "";
 
   var order = beginTopoSort(graphData);
-  // console.log("ordering", order);
+  console.log("ordering", order);
   var new_x = 500;
   var new_y = 400;
 
   var rendered = {};
+  var connections = {};
 
   var angle = 0;
   for (var n = 0; n < order.length; n++) {
+    angle = 0;
     var distance = 10;
     if (!rendered.hasOwnProperty(order[n])) {
       //console.log("order new node ", order[n]);
@@ -755,8 +758,8 @@ function graphTick() {
 
       rendered[order[n]] = {
         "node": order[n],
-        x: last_x,
-        y: last_y
+        x: new_x,
+        y: new_y
       }
     } else {
       last_x = rendered[order[n]].x;
@@ -764,7 +767,7 @@ function graphTick() {
     }
 
     for (var a = 0; a < adjacency[order[n]].length; a++) {
-
+      
       if (!rendered.hasOwnProperty(adjacency[order[n]][a].destination)) {
         distance *= 1.3;
         var radius = 10;
@@ -790,31 +793,58 @@ function graphTick() {
         gctx.moveTo(x, y);
         gctx.lineTo(last_x, last_y);
 
-  var headlen = 10; // length of head in pixels
-  var dx = last_x - x;
-  var dy = last_y - y;
-  var aangle = Math.atan2(dy, dx);
-  
-  gctx.lineTo(last_x - headlen * Math.cos(aangle - Math.PI / 6), last_y - headlen * Math.sin(aangle - Math.PI / 6));
-  gctx.moveTo(last_x, last_y);
-  gctx.lineTo(last_x - headlen * Math.cos(aangle + Math.PI / 6), last_y - headlen * Math.sin(aangle + Math.PI / 6));
-        
+        var headlen = 10; // length of head in pixels
+        var dx = last_x - x;
+        var dy = last_y - y;
+        var aangle = Math.atan2(dy, dx);
+
+        gctx.lineTo(last_x - headlen * Math.cos(aangle - Math.PI / 6), last_y - headlen * Math.sin(aangle - Math.PI / 6));
+        gctx.moveTo(last_x, last_y);
+        gctx.lineTo(last_x - headlen * Math.cos(aangle + Math.PI / 6), last_y - headlen * Math.sin(aangle + Math.PI / 6));
+
         gctx.stroke();
         // last_x = x;
         // last_y = y;
 
+      } else {
+        var source = rendered[adjacency[order[n]][a].destination];
+        var target = rendered[order[n]];
+        var key = `${source.node}->${target.node}`;
+        if (!connections.hasOwnProperty(key)) 
+        {
+          connections[key] = true;
+          // console.log("drawing line to existing item", source, target);
+          xx = target.x;
+          yy = target.y;
+          last_xx = source.x;
+          last_yy = source.y;
+          gctx.beginPath();
+          gctx.moveTo(xx, yy);
+          gctx.lineTo(last_xx, last_yy);
+  
+          var headlen = 10; // length of head in pixels
+          var dx = last_xx - xx;
+          var dy = last_yy - yy;
+          var aangle = Math.atan2(dy, dx);
+  
+          gctx.lineTo(last_xx - headlen * Math.cos(aangle - Math.PI / 6), last_yy - headlen * Math.sin(aangle - Math.PI / 6));
+          gctx.moveTo(last_xx, last_yy);
+          gctx.lineTo(last_xx - headlen * Math.cos(aangle + Math.PI / 6), last_yy - headlen * Math.sin(aangle + Math.PI / 6));
+  
+          gctx.stroke();
+        }
       }
 
 
       angle = (angle + 35) % 360;
     }
-    angle = 0;
-
+    
+    // angle = (angle + 35) % 360;
   }
 
 }
 graphTick();
-setInterval(graphTick, 3000);
+setInterval(graphTick, 30000);
 function renderProgram() {
 
 }
@@ -1043,8 +1073,9 @@ assignment(task:A, thread:1)
 thread_free(thread:next_free_thread) = fork(task:A, task:B)
                                 | send_task_to_thread(task:B, thread:next_free_thread)
                                 |   running_on(task:B, thread:2)
-                                    paused(task:B, thread:1)
+                                    paused(task:A, thread:1)
                                     running_on(task:A, thread:1)
+                                    assignment(task:B, thread:2)
                                | { yield(task:B, returnvalue) | paused(task:B, thread:2) }
                                  { await(task:A, task:B, returnvalue) | paused(task:A, thread:1) }
                                | send_returnvalue(task:B, task:A, returnvalue); 
@@ -1089,7 +1120,33 @@ function indexStatement(x, statement, statements, parameterIndex) {
     parameterIndex[statement.parameters[v]].push(statement);
   }
 }
+graphIndexLeft = {};
+graphIndexRight = {};
+function parseStatement(statements, n) {
+  if (statements[n].kind == "parallel") {
+      for (var x = 0; x < statements[n].children.length; x++) {
+        parseStatement(statements[n].children, x);
+      }
+    }
+  for (var b = 0; b < statements[n].parameters.length; b++) {
+    
+    for (var c = 0; c < statements[n].parameters.length; c++) {
+      if (b != c) {
+        var left = `${statements[n].parameters[b]}`;
+        var right = statements[n].parameters[c];
+        var key = `${left}->${right}`;
+        if (!graphIndexLeft.hasOwnProperty(key)) {
+          graphIndexLeft[key] = true;
+
+          graphData.push([left, "moves", right]);
+          }
+
+      }
+    }
+  }
+}
 function mergeTasks() {
+  graphIndexLeft = {};
   console.log("MERGE TASKS");
   var programs = [];
   var index = {};
@@ -1131,63 +1188,83 @@ function mergeTasks() {
   }
 
   console.log("statementindex", parameterIndex);
+  console.log("statements", statements);
   graphData = [];
   var keys = Object.keys(parameterIndex);
-  
+
   for (var n = 0; n < statements.length; n++) {
-      //graphData.push([statements[n].fact, "moves", statements[n].parameters.join(" ")]);
-      for (var b = 0; b < statements[n].parameters.length; b++) {
-         for (var c = 0; c < statements[n].parameters.length; c++) {
-           if (b != c) {
-graphData.push([`${statements[n].parameters[c]}`, "moves", statements[n].parameters[b]]);
-             
-           }
-         }
-        
-      
-        //graphData.push([parameterIndex[keys[n]][b].fact, "moves", keys[n]]);
-        
-// graphData.push([parameterIndex[keys[n]][b].parameters[x], "moves", keys[n]]);
-        
-       
+    //graphData.push([statements[n].fact, "moves", statements[n].parameters.join(" ")]);
+    parseStatement(statements, n);
 
 
-  }
-  }
-  console.log(graphData);
-  updateGraph();
-  for (var i = 0; i < programs.length; i++) {
-    var prog = programs[i];
-    for (var n = 0; n < prog.length; n++) {
-      for (var s = 0; s < prog[n].length; s++) {
-        var item = prog[n][s];
-        // console.log("itemis", item);
-        if (typeof item === "string" && item.charAt(0) == "&") {
-          index[item] = {
-            program: prog[n],
-            stateline: n,
-            position: s
-          }
+    //graphData.push([parameterIndex[keys[n]][b].fact, "moves", keys[n]]);
+
+    // graphData.push([parameterIndex[keys[n]][b].parameters[x], "moves", keys[n]]);
+
+
+
+
+  
+}
+graphData = [...new Set(graphData)];
+console.log(graphData);
+updateGraph();
+for (var i = 0; i < programs.length; i++) {
+  var prog = programs[i];
+  for (var n = 0; n < prog.length; n++) {
+    for (var s = 0; s < prog[n].length; s++) {
+      var item = prog[n][s];
+      // console.log("itemis", item);
+      if (typeof item === "string" && item.charAt(0) == "&") {
+        index[item] = {
+          program: prog[n],
+          stateline: n,
+          position: s
         }
-      } // end s
-    } //
-  }
-  //console.log(index);
-  for (var x = 0; x < programs.length; x++) {
-    for (var s = 0; s < programs[x].length; s++) {
-      for (var v = 0; v < programs[x][s].length; v++) {
-        var bb = programs[x][s][v];
-        //console.log(bb);
-        var key = "&" + bb;
-        if (index.hasOwnProperty(key)) {
-          var record = index[key]
-          //console.log(record.position);
-          console.log(record.program.slice(record.position + 1));
-        }
+      }
+    } // end s
+  } //
+}
+//console.log(index);
+for (var x = 0; x < programs.length; x++) {
+  for (var s = 0; s < programs[x].length; s++) {
+    for (var v = 0; v < programs[x][s].length; v++) {
+      var bb = programs[x][s][v];
+      //console.log(bb);
+      var key = "&" + bb;
+      if (index.hasOwnProperty(key)) {
+        var record = index[key]
+        //console.log(record.position);
+        console.log(record.program.slice(record.position + 1));
       }
     }
   }
+}
 
 }
 mergeTasks();
 refresheventprograms();
+
+var lc = document.getElementById("logistical-animation");
+var lctx = lc.getContext("2d");
+
+var atoms = [
+  {"name": "one", x: 50, y: 50, angle: 0}
+]
+
+var lradius = 5;
+var ldistance = 1.3;
+function aniTick() {
+  lctx.fillStyle = "white";
+  lctx.fillRect(0, 0, 800, 800);
+  for (var x = 0 ; x < atoms.length ; x++) {
+    lctx.fillStyle = "red";
+    atoms[x].angle = (atoms[x].angle + 20) % 360;
+    atoms[x].x = atoms[x].x + lradius * Math.cos(-atoms[x].angle * Math.PI / 180) * ldistance;
+    atoms[x].y = atoms[x].y + lradius * Math.sin(-atoms[x].angle * Math.PI / 180) * ldistance;
+    lctx.fillRect(atoms[x].x, atoms[x].y, 5, 5);
+    
+  }
+}
+aniTick();
+setInterval(aniTick, 200);
