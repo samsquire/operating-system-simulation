@@ -10,7 +10,7 @@ var cpu = {
   threads: 2,
   cores: 8
 }
-  
+
 
 var program = `
 server = bind | accept | create-thread;
@@ -154,6 +154,7 @@ function parseparameterlist(statement, kind) {
       break;
     }
     else if (parse.token == "pipe") {
+
       currentfact = {
         parameters: [],
         children: []
@@ -182,7 +183,12 @@ function parseprogram(program) {
     parameters: [],
     children: []
   };
-
+  var currentgroup = {
+    kind: "group",
+    children: [],
+    parameters: [],
+    fact: "group"
+  };
   var statement = [];
   while (!parse.end) {
 
@@ -198,7 +204,9 @@ function parseprogram(program) {
       if (parse.token == "openbracket") {
         parseparameterlist(statement, "closebracket");
         currentfact.fact = statement[0];
-        currentfact.parameters = statement.slice(1); statements.push(currentfact);
+        currentfact.parameters = statement.slice(1);
+        currentgroup.children.push(currentfact);
+
         currentfact = {
           parameters: [],
           children: []
@@ -217,11 +225,21 @@ function parseprogram(program) {
         statement = [];
       }
       else if (parse.token == "pipe" || parse.token == "equals") {
+        statements.push(currentgroup);
+        currentgroup = {
+          kind: "group",
+          children: [],
+          parameters: [],
+          fact: "group"
+        };
 
+
+        statement = [];
         currentfact = {
           parameters: [],
           children: []
         };
+
         statement = []
       }
       else if (parse.token != "eol") {
@@ -271,10 +289,16 @@ function parseprogram(program) {
   parse.pos = 0;
   parse.end = false;
   var masks = [];
+  var d = 0;
   for (var x = 0; x < statements.length; x++) {
-    masks.push(1 << x);
+    for (var n = 0 ; n < statements[x].children.length ; n ++) {
+   console.log(statements[x]);
+      console.log(statements[x].children[n]); masks.push([statements[x].children[n].fact, 1
+               << d]);
+      d++;
+      }
   }
-  console.log(masks);
+  console.log("masks", masks);
   return statements;
 }
 var initialprogram = parseprogram(program);
@@ -767,7 +791,7 @@ function graphTick() {
     }
 
     for (var a = 0; a < adjacency[order[n]].length; a++) {
-      
+
       if (!rendered.hasOwnProperty(adjacency[order[n]][a].destination)) {
         distance *= 1.3;
         var radius = 10;
@@ -810,8 +834,7 @@ function graphTick() {
         var source = rendered[adjacency[order[n]][a].destination];
         var target = rendered[order[n]];
         var key = `${source.node}->${target.node}`;
-        if (!connections.hasOwnProperty(key)) 
-        {
+        if (!connections.hasOwnProperty(key)) {
           connections[key] = true;
           // console.log("drawing line to existing item", source, target);
           xx = target.x;
@@ -821,16 +844,16 @@ function graphTick() {
           gctx.beginPath();
           gctx.moveTo(xx, yy);
           gctx.lineTo(last_xx, last_yy);
-  
+
           var headlen = 10; // length of head in pixels
           var dx = last_xx - xx;
           var dy = last_yy - yy;
           var aangle = Math.atan2(dy, dx);
-  
+
           gctx.lineTo(last_xx - headlen * Math.cos(aangle - Math.PI / 6), last_yy - headlen * Math.sin(aangle - Math.PI / 6));
           gctx.moveTo(last_xx, last_yy);
           gctx.lineTo(last_xx - headlen * Math.cos(aangle + Math.PI / 6), last_yy - headlen * Math.sin(aangle + Math.PI / 6));
-  
+
           gctx.stroke();
         }
       }
@@ -838,7 +861,7 @@ function graphTick() {
 
       angle = (angle + 35) % 360;
     }
-    
+
     // angle = (angle + 35) % 360;
   }
 
@@ -1090,7 +1113,7 @@ function refreshevents() {
     mergeTasks();
   }
 }
-setInterval(refreshevents, 300);
+setInterval(refreshevents, 5000);
 
 function refresheventprograms() {
   $("#events").empty();
@@ -1124,12 +1147,12 @@ graphIndexLeft = {};
 graphIndexRight = {};
 function parseStatement(statements, n) {
   if (statements[n].kind == "parallel") {
-      for (var x = 0; x < statements[n].children.length; x++) {
-        parseStatement(statements[n].children, x);
-      }
+    for (var x = 0; x < statements[n].children.length; x++) {
+      parseStatement(statements[n].children, x);
     }
+  }
   for (var b = 0; b < statements[n].parameters.length; b++) {
-    
+
     for (var c = 0; c < statements[n].parameters.length; c++) {
       if (b != c) {
         var left = `${statements[n].parameters[b]}`;
@@ -1139,12 +1162,37 @@ function parseStatement(statements, n) {
           graphIndexLeft[key] = true;
 
           graphData.push([left, "moves", right]);
-          }
+        }
 
       }
     }
   }
 }
+function create_dependencies(statements) {
+  var items = [];
+  var parameters = [];
+  var index = {};
+  for (var x = 0; x < statements.length; x++) {
+    items = items.concat(statements[x].children);
+    for (var c = 0; c < statements[x].children.length; c++) {
+      for (var n = 0; n < statements[x].children[c].parameters.length; n++) {
+        parameters.push({"parameter": statements[x].children[c].parameters[n], "fact": statements[x].children[c].fact});
+        if (!index.hasOwnProperty(statements[x].children[c].parameters[n])) {
+          index[statements[x].children[c].parameters[n]] = [];
+        } else {
+          index[statements[x].children[c].parameters[n]].push(statements[x].children[c].fact)
+        }
+      }
+    }
+  }
+  console.log("allitems", items);
+  console.log("parameters", parameters);
+  console.log("index", index);
+  
+  
+  // live ranges
+}
+
 function mergeTasks() {
   graphIndexLeft = {};
   console.log("MERGE TASKS");
@@ -1153,6 +1201,7 @@ function mergeTasks() {
   $("#parsedevents").empty();
   for (var x = 0; x < eventprograms.length; x++) {
     var statements = parseprogram(eventprograms[x]);
+    create_dependencies(statements);
     programs.push(statements);
     console.log("statements", statements);
 
@@ -1160,20 +1209,21 @@ function mergeTasks() {
     var ul = $("#parsedevents").append(ol)
     for (var n = 0; n < statements.length; n++) {
 
-      var container = $(`<div class="fact-container"></div>`);
-      ol.append(container)
-      var name = $(`<div class="fact-name">${statements[n].fact}</div>`);
-      container.append(name);
-      if (container.kind == "parallel") {
 
+      for (var c = 0; c < statements[n].children.length; c++) {
+        var container = $(`<div class="fact-container"></div>`);
+        ol.append(container)
+        var name = $(`<div class="fact-name">${statements[n].children[c].fact}</div>`);
+        container.append(name);
+
+        for (var b = 0; b < statements[n].children[c].parameters.length; b++) {
+          var factname = $(`<div class="fact-parameter">${statements[n].children[c].parameters[b]}</div>`);
+          container.append(factname);
+        }
       }
-      for (var b = 0; b < statements[n].parameters.length; b++) {
-        var factname = $(`<div class="fact-parameter">${statements[n].parameters[b]}</div>`);
-        container.append(factname);
-      }
+      //var taskA = $("")
+
     }
-    //var taskA = $("")
-
   }
 
 
@@ -1204,42 +1254,42 @@ function mergeTasks() {
 
 
 
-  
-}
-graphData = [...new Set(graphData)];
-console.log(graphData);
-updateGraph();
-for (var i = 0; i < programs.length; i++) {
-  var prog = programs[i];
-  for (var n = 0; n < prog.length; n++) {
-    for (var s = 0; s < prog[n].length; s++) {
-      var item = prog[n][s];
-      // console.log("itemis", item);
-      if (typeof item === "string" && item.charAt(0) == "&") {
-        index[item] = {
-          program: prog[n],
-          stateline: n,
-          position: s
+
+  }
+  graphData = [...new Set(graphData)];
+  console.log(graphData);
+  updateGraph();
+  for (var i = 0; i < programs.length; i++) {
+    var prog = programs[i];
+    for (var n = 0; n < prog.length; n++) {
+      for (var s = 0; s < prog[n].length; s++) {
+        var item = prog[n][s];
+        // console.log("itemis", item);
+        if (typeof item === "string" && item.charAt(0) == "&") {
+          index[item] = {
+            program: prog[n],
+            stateline: n,
+            position: s
+          }
         }
-      }
-    } // end s
-  } //
-}
-//console.log(index);
-for (var x = 0; x < programs.length; x++) {
-  for (var s = 0; s < programs[x].length; s++) {
-    for (var v = 0; v < programs[x][s].length; v++) {
-      var bb = programs[x][s][v];
-      //console.log(bb);
-      var key = "&" + bb;
-      if (index.hasOwnProperty(key)) {
-        var record = index[key]
-        //console.log(record.position);
-        console.log(record.program.slice(record.position + 1));
+      } // end s
+    } //
+  }
+  //console.log(index);
+  for (var x = 0; x < programs.length; x++) {
+    for (var s = 0; s < programs[x].length; s++) {
+      for (var v = 0; v < programs[x][s].length; v++) {
+        var bb = programs[x][s][v];
+        //console.log(bb);
+        var key = "&" + bb;
+        if (index.hasOwnProperty(key)) {
+          var record = index[key]
+          //console.log(record.position);
+          console.log(record.program.slice(record.position + 1));
+        }
       }
     }
   }
-}
 
 }
 mergeTasks();
@@ -1249,7 +1299,7 @@ var lc = document.getElementById("logistical-animation");
 var lctx = lc.getContext("2d");
 
 var atoms = [
-  {"name": "one", x: 50, y: 50, angle: 0}
+  { "name": "one", x: 50, y: 50, angle: 0 }
 ]
 
 var lradius = 5;
@@ -1257,14 +1307,25 @@ var ldistance = 1.3;
 function aniTick() {
   lctx.fillStyle = "white";
   lctx.fillRect(0, 0, 800, 800);
-  for (var x = 0 ; x < atoms.length ; x++) {
+  for (var x = 0; x < atoms.length; x++) {
     lctx.fillStyle = "red";
     atoms[x].angle = (atoms[x].angle + 20) % 360;
     atoms[x].x = atoms[x].x + lradius * Math.cos(-atoms[x].angle * Math.PI / 180) * ldistance;
     atoms[x].y = atoms[x].y + lradius * Math.sin(-atoms[x].angle * Math.PI / 180) * ldistance;
     lctx.fillRect(atoms[x].x, atoms[x].y, 5, 5);
-    
+
   }
 }
 aniTick();
 setInterval(aniTick, 200);
+
+var nt = $("#number-table");
+
+var c = 0;
+for (var x = 0; x < 15; x++) {
+  for (var n = 0; n < 15; n++) {
+    var nn = $(`<span>${c++} <span> `);
+    nt.append(nn);
+  }
+  nt.append($("<br>"))
+}

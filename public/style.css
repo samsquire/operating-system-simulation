@@ -63,3 +63,9 @@ body {
 .active-latch {
   border: 1px solid black;
 }
+
+#number-table {
+  width: 100px;
+  float: left;
+  font-family: monospace;
+}
